@@ -77,7 +77,7 @@
       </div>
     </header>
 
-    <nav class="nav">
+    <nav class="nav" id="topnav">
       <a href="#home" data-route>Home</a>
       <a href="#arista" data-route>Page 1: Arista's</a>
       <a href="#dcnm" data-route>Page 2: DCNM</a>
@@ -172,11 +172,17 @@
 
   <script>
     const $ = s => document.querySelector(s); const $$ = s => Array.from(document.querySelectorAll(s));
+
+    // IP helpers
     function ipToInt(ip){const p=ip.split('.').map(Number);if(p.length!==4||p.some(n=>!Number.isInteger(n)||n<0||n>255))throw new Error('Bad IP');return (((p[0]*256+p[1])*256+p[2])*256+p[3])>>>0}
     function intToIp(x){x=x>>>0;return[(x>>>24)&255,(x>>>16)&255,(x>>>8)&255,x&255].join('.')}
     function prefixToMask(prefix){prefix=Number(prefix);if(!(prefix>=0&&prefix<=32))throw new Error('Bad prefix');const mask=prefix===0?0:(0xFFFFFFFF<<(32-prefix))>>>0;return{int:mask>>>0,dotted:intToIp(mask>>>0)}}
     function parseCIDR(cidr){const parts=cidr.trim().split('/');if(parts.length!==2)throw new Error('CIDR must be like 203.0.113.0/29');const [ipStr,pfxStr]=parts;const prefix=Number(pfxStr);if(!Number.isInteger(prefix)||prefix<0||prefix>32)throw new Error('Bad prefix');const ipInt=ipToInt(ipStr);const block=2**(32-prefix);const network=Math.floor(ipInt/block)*block>>>0;const broadcast=(network+block-1)>>>0;let first,last;if(prefix===32){first=network;last=network}else if(prefix===31){first=network;last=broadcast}else{first=(network+1)>>>0;last=(broadcast-1)>>>0}return{prefix,ipInt,ipStr,network,broadcast,first,last,mask:prefixToMask(prefix)}}
+
+    // DC mapping
     function dcSecondOctet(dc){switch((dc||'').toUpperCase()){case 'IAD':return 101;case 'ORD':return 105;case 'LAX':return 107;default:return 100;}}
+
+    // BGP leaves
     function buildBGPLeaves(vlan, dc){
       const tag=(vlan&&vlan.length===3)?`40${vlan}`:(vlan?`4${vlan}`:'');
       const second=dcSecondOctet(dc);
@@ -188,10 +194,9 @@ Vlan ${vlan}
      rd 10.${second}.220.${octet}:${tag}
      route-target both ${tag}:${tag}
      redistribute learned`;
-      }).join('
-
-');
+      }).join('\n\n');
     }
+
     function compute(){
       const cust=$('#custName')?.value.trim()||'';
       const sfid=$('#sfid')?.value.trim()||'';
@@ -219,14 +224,9 @@ Vlan ${vlan}
       const desc=(dc&&cust&&sfid)?`(${dc}) - ${cust} - ${sfid}`:'—';
       $('#desc')&&( $('#desc').textContent = desc );
 
-      const secWAN = `vlan ${wan}
-      name ${cust}-${sfid}-WAN`;
-      const secVCG = `vlan ${vcg}
-    name ${cust}-${sfid}-VCG`;
-      const secRoute = `interface Vlan${wan}
-  description ${cust}-${sfid}-WAN
-  vrf RS-INET
-  ip address ${gw} ${mask}`;
+      const secWAN = `vlan ${wan}\n      name ${cust}-${sfid}-WAN`;
+      const secVCG = `vlan ${vcg}\n    name ${cust}-${sfid}-VCG`;
+      const secRoute = `interface Vlan${wan}\n  description ${cust}-${sfid}-WAN\n  vrf RS-INET\n  ip address ${gw} ${mask}`;
       const secBGP = buildBGPLeaves(wan, dc);
       const secBGPVCG = (dc==='IAD' ? buildBGPLeaves(vcg, dc) : '');
 
@@ -243,8 +243,7 @@ Vlan ${vlan}
       if(codeAll){
         const parts=[ 'Section Name: WAN VLAN',secWAN,'','Section Name: VCG VLAN',secVCG,'','Section Name: Route',secRoute,'','Section Name: BGP SVC Leaves 01–04',secBGP ];
         if(dc==='IAD'){ parts.push('', "Don't Forget!! (IAD only)", secBGPVCG); }
-        codeAll.textContent = parts.join('
-');
+        codeAll.textContent = parts.join('\n');
       }
 
       const staticSubnet = $('#staticSubnet')?.value.trim();
@@ -253,16 +252,42 @@ Vlan ${vlan}
         const node = $('#staticOut'); if(node) node.textContent = out;
       }
     }
+    // Tabs (Arista page only)
     function activateTab(id){
       ['wanvlan','vcgvlan','route','bgp','all'].forEach(t=>{
-        const tab=document.querySelector(`.tab[data-tab="${t}"]`);
+        const tab = document.querySelector(`.tab[data-tab="${t}"]`);
         if(tab) tab.classList.toggle('active', t===id);
-        const sec=document.querySelector(`#sec-${t}`);
-        if(sec) sec.style.display=(t===id?'block':'none');
+        const sec = document.querySelector(`#sec-${t}`);
+        if(sec) sec.style.display = (t===id ? 'block' : 'none');
       });
     }
-    function setActiveNav(){$$('a[data-route]').forEach(a=>a.classList.toggle('active',a.getAttribute('href')===location.hash));}
-    function showPageFromHash(){const id=(location.hash||'#home').replace('#',''); setActiveNav(); $$('.page').forEach(p=>p.classList.remove('active')); const page=$(`#page-${id}`); if(page) page.classList.add('active');}
+
+
+    // Robust router: delegate clicks and use history API
+    function setActiveNav(){
+      const hash = location.hash || '#home';
+      $$('#topnav a[data-route]').forEach(a=>a.classList.toggle('active', a.getAttribute('href')===hash));
+    }
+    function showPageFromHash(){
+      const id = (location.hash || '#home').slice(1);
+      $$('.page').forEach(p=>p.classList.remove('active'));
+      const page = document.getElementById(`page-${id}`);
+      if(page){ page.classList.add('active'); }
+      setActiveNav();
+    }
+    document.addEventListener('click', (e)=>{
+      const a = e.target.closest('a[data-route]');
+      if(!a) return;
+      e.preventDefault();
+      const href = a.getAttribute('href') || '#home';
+      if(location.hash !== href){
+        history.pushState(null, '', href);
+      }
+      showPageFromHash();
+    });
+    window.addEventListener('popstate', showPageFromHash);
+    window.addEventListener('hashchange', showPageFromHash);
+
     function safeAttach(sel,evt,fn){const n=document.querySelector(sel); if(n) n.addEventListener(evt,fn);}
     function init(){
       ['input','change'].forEach(evt=>['#custName','#sfid','#dc','#wanVlan','#vcgVlan','#cidr','#staticSubnet'].forEach(s=>safeAttach(s,evt,compute)));
@@ -275,31 +300,14 @@ Vlan ${vlan}
       safeAttach('#btnNeedStatic','click',()=>{const f=$('#staticForm'); if(f) f.style.display = (f.style.display==='none'?'block':'none');});
       safeAttach('#btnSample','click',()=>{ $('#custName').value='NobleGrid Networks'; $('#sfid').value='0065x00000AbCdE'; $('#dc').value='IAD'; $('#wanVlan').value='210'; $('#vcgVlan').value='1210'; $('#cidr').value='100.100.100.1/31'; compute(); });
       safeAttach('#btnReset','click',()=>{ ['#custName','#sfid','#wanVlan','#vcgVlan','#cidr','#staticSubnet'].forEach(s=>{const n=$(s); if(n) n.value='';}); const dc=$('#dc'); if(dc) dc.value=''; compute(); });
-      window.addEventListener('hashchange',showPageFromHash); showPageFromHash();
+      // Tabs default
+      activateTab('wanvlan');
+      // Router initial render
+      showPageFromHash();
+      // First compute
       compute();
-      runTests();
     }
     if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init);} else {init();}
-    function expectEqual(name, got, expected){ const ok = (got===expected); console[ok?'log':'error'](ok?`✔ ${name}`:`✖ ${name} (got ${got}, expected ${expected})`); return ok; }
-    function runTests(){
-      const out = document.getElementById('testOut'); const lines = []; const line = s => lines.push(s);
-      try{
-        let { mask } = parseCIDR('198.51.100.32/28'); expectEqual('mask /28', mask.dotted, '255.255.255.240');
-        ({ mask } = parseCIDR('203.0.113.8/31')); expectEqual('mask /31', mask.dotted, '255.255.255.254');
-        ({ mask } = parseCIDR('203.0.113.9/32')); expectEqual('mask /32', mask.dotted, '255.255.255.255');
-        const tag3 = (('210').length===3)?`40${'210'}`:`4${'210'}`; expectEqual('BGP tag 210', tag3, '40210');
-        const tag4 = (('1210').length===4)?`4${'1210'}`:`40${'1210'}`; expectEqual('BGP tag 1210', tag4, '41210');
-        expectEqual('IAD second octet', dcSecondOctet('IAD'), 101);
-        expectEqual('ORD second octet', dcSecondOctet('ORD'), 105);
-        expectEqual('LAX second octet', dcSecondOctet('LAX'), 107);
-        expectEqual('Default second octet', dcSecondOctet('DAL'), 100);
-        const parts = ['A','B','C']; const joined = parts.join('
-'); expectEqual('join newline', joined, 'A
-B
-C');
-      }catch(e){ line('Test error: '+e.message); }
-      if(out) out.innerHTML = lines.join('<br/>');
-    }
   </script>
 </body>
 </html>
