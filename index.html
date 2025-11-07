@@ -297,7 +297,7 @@ Vlan ${vlan}
 '); expectEqual('join newline', joined, 'A
 B
 C');
-      }catch(e){ lines.append('Test error: '+e.message); }
+      }catch(e){ line('Test error: '+e.message); }
       if(out) out.innerHTML = lines.join('<br/>');
     }
   </script>
