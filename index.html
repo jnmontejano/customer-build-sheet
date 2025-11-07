@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Customer Build Sheet</title>
+  <!--
+    Customer Build Sheet — single-file web app
+    - Full UI (cards, tabs, styles)
+    - /31 rule: ENTERED IP = Gateway, ENTERED IP + 1 = Firewall
+    - Route section: description, vrf RS-INET, ip address <gw> <mask>
+    - BGP SVC Leaves 01–04 with 10.100.220.[6..9] and 3/4-digit VLAN rule (40210 vs 41210)
+  -->
+  <style>
+    /* ===== Base + Theme ===== */
+    :root {
+      --bg: #0b0f1a;
+      --panel: rgba(255,255,255,0.06);
+      --text: #e6e9ef;
+      --muted: #aab2c0;
+      --accent: #7c5cff;
+      --accent-2: #00d1ff;
+      --radius: 16px;
+      --shadow: 0 10px 30px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: Inter, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0; color: var(--text); font-family: var(--sans);
+      background: radial-gradient(1000px 600px at 20% -10%, rgba(124,92,255,0.25), transparent 60%),
+                  radial-gradient(700px 500px at 100% 0%, rgba(0,209,255,0.18), transparent 50%),
+                  linear-gradient(180deg, #05070d, var(--bg));
+    }
+    a { color: var(--accent-2); text-decoration: none; }
+
+    /* ===== Layout ===== */
+    .wrap { max-width: 1200px; margin: 40px auto; padding: 0 20px; }
+    header { display:flex; align-items:center; justify-content:space-between; gap: 16px; margin-bottom: 22px; }
+    .brand { display:flex; align-items:center; gap:12px; }
+    .logo { width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: var(--shadow); }
+    h1 { margin: 0; font-size: 22px; letter-spacing: 0.2px; }
+    .grid { display:grid; grid-template-columns: 1.05fr 0.95fr; gap: 20px; }
+    @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+
+    /* ===== Cards ===== */
+    .card { background: var(--panel); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius); box-shadow: var(--shadow); backdrop-filter: saturate(120%) blur(8px); }
+    .card h2 { margin: 0; padding: 16px 18px; font-size: 16px; color: white; border-bottom: 1px solid rgba(255,255,255,0.08); background: linear-gradient(180deg, rgba(255,255,255,0.05), transparent); border-top-left-radius: var(--radius); border-top-right-radius: var(--radius); }
+    .card .content { padding: 16px 18px 18px; }
+
+    /* ===== Form ===== */
+    .field { display:grid; grid-template-columns: 180px 1fr; gap: 12px; align-items:center; margin: 10px 0; }
+    .field label { color: var(--muted); font-size: 13px; }
+    .field input, .field select { width: 100%; padding: 10px 12px; color: var(--text); background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; outline: none; transition: 150ms border, 150ms background; }
+    .field input:focus, .field select:focus { border-color: var(--accent-2); background: rgba(255,255,255,0.06); }
+    .muted { color: var(--muted); font-size: 12px; }
+
+    .row { display:flex; gap: 10px; align-items:center; flex-wrap: wrap; }
+    .btn { border: 1px solid rgba(255,255,255,0.18); background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)); padding: 10px 14px; border-radius: 12px; color: var(--text); cursor: pointer; transition: 150ms transform, 150ms background; }
+    .btn:hover { transform: translateY(-1px); background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.05)); }
+    .btn.primary { border-color: transparent; background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: white; }
+
+    /* ===== Output ===== */
+    .tabs { display:flex; gap: 8px; padding: 12px 12px 0; border-bottom: 1px solid rgba(255,255,255,0.08); flex-wrap: wrap; }
+    .tab { padding: 8px 12px; border-radius: 10px; cursor: pointer; font-size: 13px; color: var(--muted); border: 1px solid transparent; }
+    .tab.active { color: white; border-color: rgba(255,255,255,0.14); background: rgba(255,255,255,0.06); }
+
+    .pad { padding: 14px; }
+    .code { background: #0a0e18; color: #dbe2f1; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; font-family: var(--mono); padding: 14px; white-space: pre; overflow:auto; font-size: 13px; }
+    .sectionTitle { color: var(--muted); font-weight: 600; margin-bottom: 8px; }
+
+    .copyRow { display:flex; gap: 8px; align-items:center; justify-content: flex-end; margin: 8px 0 0; }
+
+    .badges { display:flex; gap:6px; flex-wrap: wrap; margin-top: 8px; }
+    .badge { font-family: var(--mono); font-size: 12px; color: #fff; padding: 6px 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.06); }
+
+    .test { margin-top: 18px; font-family: var(--mono); font-size: 12px; color: #bfe0ff; }
+    .test b { color: #fff; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <h1>Customer Build Sheet</h1>
+      </div>
+      <div class="row">
+        <button class="btn" id="btnReset" title="Clear all inputs">Reset</button>
+        <button class="btn primary" id="btnSample" title="Load sample values quickly">Load Sample</button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- ================= Left: Inputs ================= -->
+      <section class="card">
+        <h2>Input</h2>
+        <div class="content" id="formArea">
+          <!-- Section 1 - Customer Info -->
+          <div class="field"><label for="custName">Customer Name</label><input id="custName" placeholder="Acme Corp" /></div>
+          <div class="field"><label for="sfid">Salesforce ID</label><input id="sfid" placeholder="006XXXXXXXXXXXX" /></div>
+          <div class="field">
+            <label for="dc">Datacenter</label>
+            <select id="dc">
+              <option value="">Select…</option>
+              <option>LAX</option>
+              <option>IAD</option>
+              <option>ORD</option>
+              <option>DAL</option>
+              <option>HNK</option>
+              <option>LND</option>
+              <option>SIN</option>
+            </select>
+          </div>
+
+          <!-- Section 2 - Network Info -->
+          <div class="field"><label for="wanVlan">WAN VLAN</label><input id="wanVlan" inputmode="numeric" placeholder="200" /></div>
+          <div class="field"><label></label><div class="muted">WAN Name → <span id="wanNamePreview">(auto)</span></div></div>
+          <div class="field"><label for="vcgVlan">VCG VLAN</label><input id="vcgVlan" inputmode="numeric" placeholder="210" /></div>
+          <div class="field"><label></label><div class="muted">VCG Name → <span id="vcgNamePreview">(auto)</span></div></div>
+          <div class="field"><label for="cidr">IPAM Public IP (CIDR)</label><input id="cidr" placeholder="198.51.100.32/28" /></div>
+
+          <!-- Computed readouts -->
+          <div class="badges">
+            <div class="badge">Gateway: <span id="gw">—</span></div>
+            <div class="badge">Firewall: <span id="fw">—</span></div>
+            <div class="badge">Mask: <span id="mask">—</span></div>
+            <div class="badge">Desc: <span id="desc">—</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= Right: Outputs ================= -->
+      <section class="card">
+        <h2>Output</h2>
+        <div class="tabs" role="tablist">
+          <div class="tab active" data-tab="wanvlan">WAN VLAN</div>
+          <div class="tab" data-tab="vcgvlan">VCG VLAN</div>
+          <div class="tab" data-tab="route">Route</div>
+          <div class="tab" data-tab="bgp">BGP SVC Leaves</div>
+          <div class="tab" data-tab="all">All</div>
+        </div>
+        <div class="content pad">
+          <div class="section" id="sec-wanvlan">
+            <div class="sectionTitle">Section Name: WAN VLAN</div>
+            <pre class="code" id="code-wanvlan"></pre>
+            <div class="copyRow"><button class="btn" data-copy="code-wanvlan">Copy</button></div>
+          </div>
+          <div class="section" id="sec-vcgvlan" style="display:none;">
+            <div class="sectionTitle">Section Name: VCG VLAN</div>
+            <pre class="code" id="code-vcgvlan"></pre>
+            <div class="copyRow"><button class="btn" data-copy="code-vcgvlan">Copy</button></div>
+          </div>
+          <div class="section" id="sec-route" style="display:none;">
+            <div class="sectionTitle">Section Name: Route</div>
+            <pre class="code" id="code-route"></pre>
+            <div class="copyRow"><button class="btn" data-copy="code-route">Copy</button></div>
+          </div>
+          <div class="section" id="sec-bgp" style="display:none;">
+            <div class="sectionTitle">Section Name: BGP SVC Leaves 01–04</div>
+            <pre class="code" id="code-bgp"></pre>
+            <div class="copyRow"><button class="btn" data-copy="code-bgp">Copy</button></div>
+          </div>
+          <div class="section" id="sec-all" style="display:none;">
+            <div class="sectionTitle">All Sections</div>
+            <pre class="code" id="code-all"></pre>
+            <div class="copyRow"><button class="btn" data-copy="code-all">Copy All</button></div>
+          </div>
+          <div class="test" id="testOut"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    // =========== Helpers ==========
+    const $ = sel => document.querySelector(sel);
+    const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+    // IPv4 / CIDR math
+    function ipToInt(ip) {
+      const p = ip.split('.').map(Number);
+      if (p.length !== 4 || p.some(n => !Number.isInteger(n) || n < 0 || n > 255)) throw new Error('Bad IP');
+      return (((p[0] * 256 + p[1]) * 256 + p[2]) * 256 + p[3]) >>> 0;
+    }
+    function intToIp(x) { x = x >>> 0; return [x >>> 24 & 255, x >>> 16 & 255, x >>> 8 & 255, x & 255].join('.'); }
+    function prefixToMask(prefix) { prefix = Number(prefix); if (!(prefix >= 0 && prefix <= 32)) throw new Error('Bad prefix'); const mask = prefix === 0 ? 0 : (0xFFFFFFFF << (32 - prefix)) >>> 0; return { int: mask >>> 0, dotted: intToIp(mask >>> 0) }; }
+    function parseCIDR(cidr) {
+      const parts = cidr.trim().split('/'); if (parts.length !== 2) throw new Error('CIDR must be like 203.0.113.0/29');
+      const [ipStr, pfxStr] = parts; const prefix = Number(pfxStr); if (!Number.isInteger(prefix) || prefix < 0 || prefix > 32) throw new Error('Bad prefix');
+      const ipInt = ipToInt(ipStr); const block = 2 ** (32 - prefix); const network = Math.floor(ipInt / block) * block >>> 0; const broadcast = (network + block - 1) >>> 0;
+      let first, last; if (prefix === 32) { first = network; last = network; } else if (prefix === 31) { first = network; last = broadcast; } else { first = (network + 1) >>> 0; last = (broadcast - 1) >>> 0; }
+      return { prefix, ipInt, ipStr, network, broadcast, first, last, mask: prefixToMask(prefix) };
+    }
+
+    // Build BGP SVC Leaves 01–04 text with correct RD base per leaf
+    function buildBGPLeaves(wan) {
+      const tag = (wan && wan.length === 3) ? `40${wan}` : (wan ? `4${wan}` : '');
+      const leaves = [6,7,8,9]; // .6 → .9
+      return leaves.map((octet, idx) => {
+        const n = (idx + 1).toString().padStart(2, '0');
+        return `Section Name: BGP SVC Leaf${n}\nVlan ${wan}\n     rd 10.100.220.${octet}:${tag}\n     route-target both ${tag}:${tag}\n     redistribute learned`;
+      }).join('\n\n');
+    }
+
+    // Compute + render
+    function compute() {
+      const custEl = $('#custName'), sfidEl = $('#sfid'), dcEl = $('#dc'), wanEl = $('#wanVlan'), vcgEl = $('#vcgVlan'), cidrEl = $('#cidr');
+      const gwEl = $('#gw'), fwEl = $('#fw'), maskEl = $('#mask'), descEl = $('#desc');
+      if (!custEl || !sfidEl || !dcEl || !wanEl || !vcgEl || !cidrEl) return;
+
+      const cust = custEl.value.trim(), sfid = sfidEl.value.trim(), dc = dcEl.value.trim();
+      const wan = wanEl.value.trim(), vcg = vcgEl.value.trim(), cidr = cidrEl.value.trim();
+
+      const wanNamePreview = $('#wanNamePreview'), vcgNamePreview = $('#vcgNamePreview');
+      if (wanNamePreview) wanNamePreview.textContent = cust ? `${cust} - WAN` : '(auto)';
+      if (vcgNamePreview) vcgNamePreview.textContent = cust ? `${cust} - VCG` : '(auto)';
+
+      let gw = '—', fw = '—', mask = '—';
+      try {
+        const { prefix, ipInt, first, last, mask: m } = parseCIDR(cidr);
+        mask = m.dotted;
+        if (prefix === 32) { gw = fw = '—'; }
+        else if (prefix === 31) { gw = intToIp(ipInt); fw = intToIp((ipInt + 1) >>> 0); }
+        else { gw = intToIp(first); const second = Math.min(last, (first + 1) >>> 0); fw = intToIp(second); }
+      } catch (e) { /* leave placeholders */ }
+
+      if (gwEl) gwEl.textContent = gw; if (fwEl) fwEl.textContent = fw; if (maskEl) maskEl.textContent = mask;
+      const desc = dc && cust && sfid ? `(${dc}) - ${cust} - ${sfid}` : '—'; if (descEl) descEl.textContent = desc;
+
+      const secWAN = `vlan ${wan}\n      name ${cust}-${sfid}-WAN`;
+      const secVCG = `vlan ${vcg}\n    name ${cust}-${sfid}-VCG`;
+      const secRoute = `interface Vlan${wan}\n  description ${cust}-${sfid}-WAN\n  vrf RS-INET\n  ip address ${gw} ${mask}`;
+      const secBGP = buildBGPLeaves(wan);
+
+      const codeWan = $('#code-wanvlan'), codeVcg = $('#code-vcgvlan'), codeRoute = $('#code-route'), codeBgp = $('#code-bgp'), codeAll = $('#code-all');
+      if (codeWan) codeWan.textContent = secWAN; if (codeVcg) codeVcg.textContent = secVCG; if (codeRoute) codeRoute.textContent = secRoute; if (codeBgp) codeBgp.textContent = secBGP;
+      if (codeAll) codeAll.textContent = [ 'Section Name: WAN VLAN', secWAN, '', 'Section Name: VCG VLAN', secVCG, '', 'Section Name: Route', secRoute, '', 'Section Name: BGP SVC Leaves 01–04', secBGP ].join('\n');
+    }
+
+    // Tabs & copy
+    function activateTab(id) {
+      $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === id));
+      $('#sec-wanvlan').style.display = id === 'wanvlan' ? 'block' : 'none';
+      $('#sec-vcgvlan').style.display = id === 'vcgvlan' ? 'block' : 'none';
+      $('#sec-route').style.display = id === 'route' ? 'block' : 'none';
+      $('#sec-bgp').style.display = id === 'bgp' ? 'block' : 'none';
+      $('#sec-all').style.display = id === 'all' ? 'block' : 'none';
+    }
+    function safeAttach(selector, evt, handler) { const node = document.querySelector(selector); if (node) node.addEventListener(evt, handler); }
+
+    function init() {
+      ['input','change'].forEach(evt => ['#custName','#sfid','#dc','#wanVlan','#vcgVlan','#cidr'].forEach(sel => safeAttach(sel, evt, compute)));
+      $$('.tab').forEach(t => t.addEventListener('click', () => activateTab(t.dataset.tab)));
+      document.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-copy]'); if (!btn) return; const id = btn.getAttribute('data-copy'); const node = document.getElementById(id); if (!node) return; navigator.clipboard.writeText(node.textContent).then(() => { btn.textContent = 'Copied'; setTimeout(() => (btn.textContent = 'Copy'), 1000); });
+      });
+      safeAttach('#btnSample', 'click', () => { $('#custName').value = 'NobleGrid Networks'; $('#sfid').value = '0065x00000AbCdE'; $('#dc').value = 'IAD'; $('#wanVlan').value = '210'; $('#vcgVlan').value = '1210'; $('#cidr').value = '100.100.100.1/31'; compute(); });
+      safeAttach('#btnReset', 'click', () => { ['#custName','#sfid','#wanVlan','#vcgVlan','#cidr'].forEach(sel => { const n = $(sel); if(n) n.value=''; }); const dc = $('#dc'); if (dc) dc.value = ''; compute(); });
+      compute(); runTests();
+    }
+
+    if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
+
+    // Tiny test harness
+    function expectEqual(name, a, b) { const ok = a === b; console[ok ? 'log' : 'error'](ok ? `✔ ${name}` : `✖ ${name} (got ${a}, expected ${b})`); return ok; }
+    function runTests() {
+      const out = document.getElementById('testOut'); const lines = []; const line = s => lines.push(s);
+      try {
+        let { first, last, mask } = parseCIDR('198.51.100.32/28');
+        const gw1 = intToIp(first), fw1 = intToIp(Math.min(last, first + 1)); line(`<b>Test /28</b> → gw=${gw1}, fw=${fw1}, mask=${mask.dotted}`); expectEqual('mask /28', mask.dotted, '255.255.255.240');
+        ({ first, last, mask } = parseCIDR('203.0.113.8/31')); line(`<b>Test /31 (standard)</b> → first=${intToIp(first)}, last=${intToIp(last)}, mask=${mask.dotted}`); expectEqual('mask /31', mask.dotted, '255.255.255.254');
+        ({ first, last, mask } = parseCIDR('203.0.113.9/32')); line(`<b>Test /32</b> → first=${intToIp(first)}, last=${intToIp(last)}, mask=${mask.dotted}`); expectEqual('mask /32', mask.dotted, '255.255.255.255');
+        const ex = parseCIDR('100.100.100.1/31'); const gwRule = intToIp(ex.ipInt); const fwRule = intToIp((ex.ipInt + 1) >>> 0); line(`<b>Test /31 (custom rule)</b> → gw=${gwRule}, fw=${fwRule}`); expectEqual('custom /31 gw', gwRule, '100.100.100.1'); expectEqual('custom /31 fw', fwRule, '100.100.100.2');
+        const tag3 = ('210'.length === 3) ? `40${'210'}` : `4${'210'}`; const tag4 = ('1210'.length === 4) ? `4${'1210'}` : `40${'1210'}`; line(`<b>Test BGP tag (3-digit)</b> → ${tag3}`); line(`<b>Test BGP tag (4-digit)</b> → ${tag4}`); expectEqual('BGP tag 210', tag3, '40210'); expectEqual('BGP tag 1210', tag4, '41210');
+        const bgp = buildBGPLeaves('210'); line(`<b>Test BGP leaves (IPs)</b>\n` + bgp.split('\n').filter(l=>l.includes('rd 10.100.220.')).join('\n'));
+      } catch (e) { console.error('Test harness error:', e); line('Test harness error: ' + e.message); }
+      if (out) out.innerHTML = lines.join('<br/>');
+    }
+  </script>
+</body>
+</html>
