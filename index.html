@@ -19,85 +19,83 @@
       --shadow: 0 10px 30px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04);
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       --sans: Inter, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+      --warn: #ff6b6b;
+      --good: #22c55e;
     }
 
-    /* ---------- Global Resets ---------- */
     * { box-sizing: border-box; }
     html, body { height: 100%; }
 
-    /* ---------- Background ---------- */
     body {
       margin: 0; color: var(--text); font-family: var(--sans);
       background: radial-gradient(1000px 600px at 20% -10%, rgba(124,92,255,0.25), transparent 60%),
                   radial-gradient(700px 500px at 100% 0%, rgba(0,209,255,0.18), transparent 50%),
                   linear-gradient(180deg, #05070d, var(--bg));
     }
+
     a { color: var(--accent-2); text-decoration: none; }
 
-    /* ---------- Shell & Header ---------- */
     .wrap { max-width: 1200px; margin: 40px auto; padding: 0 20px; }
     header { display:flex; align-items:center; justify-content:space-between; gap: 16px; margin-bottom: 14px; }
     .brand { display:flex; align-items:center; gap:12px; }
     .logo { width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: var(--shadow); }
     h1 { margin:0; font-size: 22px; color: var(--text); }
 
-    /* ---------- Top Navigation (Pages) ---------- */
     .nav { display:flex; gap:10px; flex-wrap:wrap; margin-bottom: 22px; }
     .nav a { padding: 8px 12px; border-radius: 10px; border:1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.06); color: #fff; }
     .nav a.active { background: linear-gradient(135deg, var(--accent), var(--accent-2)); border-color: transparent; }
 
-    /* ---------- Cards ---------- */
     .card { background: var(--panel); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius); box-shadow: var(--shadow); backdrop-filter: saturate(120%) blur(8px); }
     .card h2 { margin:0; padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); }
     .card .content { padding: 16px; background-color: #0b0f1a; }
 
-    /* ---------- Grids ---------- */
     .grid { display:grid; grid-template-columns: 1.05fr 0.95fr; gap: 20px; }
     @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
 
-    /* ---------- Form Fields ---------- */
     .field { display:grid; grid-template-columns: 180px 1fr; gap: 12px; align-items:center; margin: 10px 0; }
     .field label { color:var(--muted); font-size: 13px; }
-    .field input, .field select { width: 100%; padding: 10px 12px; color: var(--text); background: #141a26; border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; outline: none; }
-    .field input:focus, .field select:focus { border-color: var(--accent-2); }
+    .field input, .field select, .field textarea { width: 100%; padding: 10px 12px; color: var(--text); background: #141a26; border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; outline: none; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent-2); }
     select#dc { background-color: #111522; color: #ffffff; } /* darker dropdown */
     option { background-color: #0d1018; color: #ffffff; }
 
-    /* ---------- Buttons ---------- */
     .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
     .btn { border: 1px solid rgba(255,255,255,0.18); background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)); padding: 10px 14px; border-radius: 12px; color: var(--text); cursor:pointer; }
     .btn.primary { border-color: transparent; background: linear-gradient(135deg, var(--accent), var(--accent-2)); color:#fff; }
+    .btn.link { background: transparent; border: 1px dashed rgba(255,255,255,0.2); }
     .btn:hover { transform: translateY(-1px); }
 
-    /* ---------- New stacked key/values for IPAM summary ---------- */
     .kv { display:grid; grid-template-columns: 120px 1fr; gap: 8px 12px; margin-top: 8px; }
     .kv .k { color: var(--muted); }
     .kv .v { padding: 6px 10px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; font-family: var(--mono); }
 
-    /* ---------- Page Switching ---------- */
     .page { display:none; background-color: #0b0f1a; }
     .page.active { display:block; }
 
-    /* ---------- Tabs (Arista outputs) ---------- */
     .tabs { display:flex; gap: 8px; padding: 12px 12px 0; border-bottom: 1px solid rgba(255,255,255,0.08); flex-wrap: wrap; }
     .tab { padding: 8px 12px; border-radius: 10px; cursor: pointer; font-size: 13px; color: var(--muted); border: 1px solid transparent; }
     .tab.active { color: white; border-color: rgba(255,255,255,0.14); background: rgba(255,255,255,0.06); }
 
-    /* ---------- Code Blocks ---------- */
     .code { background:#0a0e18; color:#dbe2f1; border:1px solid rgba(255,255,255,0.1); border-radius:12px; font-family:var(--mono); padding:14px; white-space:pre; overflow:auto; font-size:13px; }
     .copyRow { display:flex; gap:8px; justify-content:flex-end; margin-top:8px; }
 
-    /* ---------- DAL Action Banner ---------- */
+    #staticOut { min-height: 200px; max-height: none; overflow: visible !important; white-space: pre-wrap; }
+
     .banner { margin: 10px 0; padding: 14px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); text-align:center; font-size: 22px; font-weight: 700; letter-spacing: .3px; display:none; }
 
-    /* ---------- Info Note on Home ---------- */
     .note { border:1px dashed rgba(255,255,255,0.25); background: rgba(255,255,255,0.05); border-radius: 14px; padding: 12px 14px; color: #dbe2f1; }
+
+    .warn { color: var(--warn); font-weight: 800; }
+
+    /* Inline debug banner */
+    #debugBanner { position: fixed; bottom: 12px; right: 12px; background: rgba(20,27,40,0.95); border:1px solid rgba(255,255,255,0.12); padding:10px 12px; border-radius:10px; font-size:12px; color:#cbd5e1; z-index:9999; display:none; }
+    #debugBanner.ok { display:block; border-color: rgba(34,197,94,0.35); color:#dcfce7; }
+    #debugBanner.err { display:block; border-color: rgba(255,107,107,0.45); color:#ffe4e6; }
   </style>
 </head>
 
 <body>
   <div class="wrap">
-    <!-- ===================== HEADER ===================== -->
     <header>
       <div class="brand"><div class="logo" aria-hidden="true"></div><h1>Customer Build Sheet</h1></div>
       <div class="row">
@@ -109,7 +107,6 @@
       </div>
     </header>
 
-    <!-- ===================== PAGE NAV ===================== -->
     <nav class="nav" id="topnav">
       <a href="#home" data-route>Home</a>
       <a href="#arista" data-route>Page 1: Arista's</a>
@@ -118,9 +115,7 @@
       <a href="#future" data-route>Page 4: Placeholder</a>
     </nav>
 
-    <!-- ===================== HOME (INFO + INPUTS) ===================== -->
     <section id="page-home" class="page active">
-      <!-- How to Use box -->
       <div class="card" style="margin-bottom:14px;">
         <h2>How to Use</h2>
         <div class="content">
@@ -135,7 +130,6 @@
         </div>
       </div>
 
-      <!-- Inputs -->
       <div class="card">
         <h2>Inputs</h2>
         <div class="content" id="formArea">
@@ -153,7 +147,6 @@
           <div class="field"><label></label><div class="muted">VCG Name → <span id="vcgNamePreview">(auto)</span></div></div>
           <div class="field"><label for="cidr">IPAM Public IP (CIDR)</label><input id="cidr" placeholder="198.51.100.32/28" /></div>
 
-          <!-- Stacked IPAM summary (expanded) -->
           <div class="kv" id="ipamSummary">
             <div class="k">Gateway:</div><div class="v"><span id="gw">—</span></div>
             <div class="k">Firewall:</div><div class="v"><span id="fw">—</span></div>
@@ -166,25 +159,24 @@
       </div>
     </section>
 
-    <!-- ===================== PAGE 1: ARISTA (OUTPUTS) ===================== -->
     <section id="page-arista" class="page">
       <div class="grid">
         <section class="card">
           <h2>Outputs (Arista)</h2>
           <div class="tabs" role="tablist">
-            <div class="tab active" data-tab="wanvlan">WAN VLAN</div>
+            <div class="tab active" data-tab="all">All</div>
+            <div class="tab" data-tab="wanvlan">WAN VLAN</div>
             <div class="tab" data-tab="vcgvlan">VCG VLAN</div>
             <div class="tab" data-tab="route">Route</div>
             <div class="tab" data-tab="bgp">BGP SVC Leaves 01–04</div>
-            <div class="tab" data-tab="all">All</div>
           </div>
           <div class="content">
             <div id="dalBanner" class="banner">Go to DCNM!</div>
-            <div id="sec-wanvlan"><div class="sectionTitle">Section Name: WAN VLAN</div><pre class="code" id="code-wanvlan"></pre><div class="copyRow"><button class="btn" data-copy="code-wanvlan">Copy</button></div></div>
-            <div id="sec-vcgvlan" style="display:none;"><div class="sectionTitle">Section Name: VCG VLAN</div><pre class="code" id="code-vcgvlan"></pre><div class="copyRow"><button class="btn" data-copy="code-vcgvlan">Copy</button></div></div>
-            <div id="sec-route" style="display:none;"><div class="sectionTitle">Section Name: Route</div><pre class="code" id="code-route"></pre><div class="copyRow"><button class="btn" data-copy="code-route">Copy</button></div></div>
+            <div id="sec-all"><pre class="code" id="code-all"></pre><div class="copyRow"><button class="btn" data-copy="code-all">Copy All</button></div></div>
+            <div id="sec-wanvlan" style="display:none;"><pre class="code" id="code-wanvlan"></pre><div class="copyRow"><button class="btn" data-copy="code-wanvlan">Copy</button></div></div>
+            <div id="sec-vcgvlan" style="display:none;"><pre class="code" id="code-vcgvlan"></pre><div class="copyRow"><button class="btn" data-copy="code-vcgvlan">Copy</button></div></div>
+            <div id="sec-route" style="display:none;"><pre class="code" id="code-route"></pre><div class="copyRow"><button class="btn" data-copy="code-route">Copy</button></div></div>
             <div id="sec-bgp" style="display:none;">
-              <div class="sectionTitle">Section Name: BGP SVC Leaves 01–04</div>
               <pre class="code" id="code-bgp"></pre>
               <div class="copyRow"><button class="btn" data-copy="code-bgp">Copy</button></div>
               <div id="dontforget" style="display:none; margin-top:14px;">
@@ -193,26 +185,28 @@
                 <div class="copyRow"><button class="btn" data-copy="code-bgp-vcg">Copy</button></div>
               </div>
             </div>
-            <div id="sec-all" style="display:none;"><div class="sectionTitle">All Sections</div><pre class="code" id="code-all"></pre><div class="copyRow"><button class="btn" data-copy="code-all">Copy All</button></div></div>
           </div>
         </section>
 
         <section class="card">
           <h2>Static Route Helper</h2>
           <div class="content">
-            <button class="btn" id="btnNeedStatic">Need a static route?</button>
-            <div id="staticForm" style="display:none; margin-top:12px;">
-              <div class="field"><label for="staticSubnet">Subnet to route</label><input id="staticSubnet" placeholder="192.0.2.0/24" /></div>
-              <div class="field"><label>Output</label><pre class="code" id="staticOut"></pre></div>
-              <div class="copyRow"><button class="btn" data-copy="staticOut">Copy Static Route</button></div>
-              <div class="muted">Format: <code>ip route vrf RS-INET &lt;static&gt; &lt;FirewallIP&gt; tag 10 name &lt;Customer&gt;-addtl</code></div>
+            <p class="muted" style="margin-top:0;">Only use <strong>/32</strong> for customer static routes.</p>
+            <div id="staticRoutes">
+              <div class="field static-row"><label>Route #1</label><input class="static-route" placeholder="203.0.113.10/32" /></div>
             </div>
+            <div class="row">
+              <button class="btn" id="btnAddRoute">Add another static</button>
+              <button class="btn primary" id="btnNeedStatic">Build static routes</button>
+            </div>
+            <div class="field" style="margin-top:12px;"><label>Output</label><pre class="code" id="staticOut"></pre></div>
+            <div class="copyRow"><button class="btn" data-copy="staticOut">Copy Static Route(s)</button></div>
+            <div class="muted">Format: <code>ip route vrf RS-INET &lt;static&gt; &lt;FirewallIP&gt; tag 10 name &lt;Customer&gt;-addtl</code></div>
           </div>
         </section>
       </div>
     </section>
 
-    <!-- ===================== PAGE 2: DCNM (DALLAS) ===================== -->
     <section id="page-dcnm" class="page">
       <div class="card">
         <h2>DCNM – Add Network (Dallas)</h2>
@@ -237,6 +231,7 @@
             <div class="content">
               <pre class="code" id="dcnm-netprofile"></pre>
               <div class="copyRow"><button class="btn" data-copy="dcnm-netprofile">Copy</button></div>
+              <div id="vlanNameWarning" class="warn" style="display:none; margin-top:8px;">VLAN Name has been shortened due to DCNM Constraints</div>
             </div>
           </section>
 
@@ -251,7 +246,6 @@
       </div>
     </section>
 
-    <!-- ===================== PAGE 3: LOCAL-IN POLICY GOLDEN CONFIG ===================== -->
     <section id="page-localin" class="page">
       <div class="card">
         <h2>Local-In Policy Golden Config</h2>
@@ -261,7 +255,12 @@
             <select id="localInterface">
               <option value="wan1">wan1</option>
               <option value="port1">port1</option>
+              <option value="custom">custom…</option>
             </select>
+          </div>
+          <div class="field" id="customIntfRow" style="display:none;">
+            <label for="localCustomIntf">Custom interface</label>
+            <input id="localCustomIntf" placeholder="e.g. port2 or wan2" />
           </div>
           <div class="row">
             <button class="btn primary" id="generateLocal">Generate Config</button>
@@ -275,275 +274,177 @@
       </div>
     </section>
 
-    <!-- ===================== PAGE 4: FUTURE PLACEHOLDER ===================== -->
     <section id="page-future" class="page"><div class="card"><h2>Future Page</h2><div class="content"><p class="muted">Reserved for future features.</p></div></div></section>
   </div>
 
-  <!-- ===================== APPLICATION LOGIC (JS) ===================== -->
-  <script>
-    // --------------- Small query helpers ---------------
-    const $ = s => document.querySelector(s);
-    const $$ = s => Array.from(document.querySelectorAll(s));
+  <div id="debugBanner"></div>
 
-    // --------------- IP helpers ---------------
+  <script>
+    'use strict';
+
+    // ---- Lightweight selectors with logging (avoid optional chaining) ----
+    function q(sel){ const n=document.querySelector(sel); if(!n) console.warn('Missing node:', sel); return n; }
+    function qq(sel){ return Array.prototype.slice.call(document.querySelectorAll(sel)); }
+
+    // ---- Debug banner helpers ----
+    function showOK(msg){ const b=q('#debugBanner'); if(!b) return; b.className=''; b.classList.add('ok'); b.textContent=msg||'JS OK'; }
+    function showErr(msg){ const b=q('#debugBanner'); if(!b) return; b.className=''; b.classList.add('err'); b.textContent=msg; }
+
+    // ---- Global error trap ----
+    window.addEventListener('error', (e)=>{ showErr('Error: '+(e && e.message ? e.message : 'unknown')); });
+    window.addEventListener('unhandledrejection', (e)=>{ showErr('Promise: '+(e && e.reason ? e.reason : 'unknown')); });
+
+    // ---- IP helpers ----
     function ipToInt(ip){ const p=ip.split('.').map(Number); if(p.length!==4||p.some(n=>!Number.isInteger(n)||n<0||n>255)) throw new Error('Bad IP'); return (((p[0]*256+p[1])*256+p[2])*256+p[3])>>>0 }
     function intToIp(x){ x=x>>>0; return[(x>>>24)&255,(x>>>16)&255,(x>>>8)&255,x&255].join('.') }
     function prefixToMask(prefix){ prefix=Number(prefix); if(!(prefix>=0&&prefix<=32)) throw new Error('Bad prefix'); const mask=prefix===0?0:(0xFFFFFFFF<<(32-prefix))>>>0; return{int:mask>>>0,dotted:intToIp(mask>>>0)} }
-    function parseCIDR(cidr){ const parts=cidr.trim().split('/'); if(parts.length!==2) throw new Error('CIDR must be like 203.0.113.0/29'); const [ipStr,pfxStr]=parts; const prefix=Number(pfxStr); if(!Number.isInteger(prefix)||prefix<0||prefix>32) throw new Error('Bad prefix'); const ipInt=ipToInt(ipStr); const block=2**(32-prefix); const network=Math.floor(ipInt/block)*block>>>0; const broadcast=(network+block-1)>>>0; let first,last; if(prefix===32){first=network;last=network}else if(prefix===31){first=network;last=broadcast}else{first=(network+1)>>>0;last=(broadcast-1)>>>0} return{prefix,ipInt,ipStr,network,broadcast,first,last,mask:prefixToMask(prefix)} }
+    function parseCIDR(cidr){ const parts=(cidr||'').trim().split('/'); if(parts.length!==2) throw new Error('CIDR must be like 203.0.113.0/29'); const ipStr=parts[0]; const pfxStr=parts[1]; const prefix=Number(pfxStr); if(!Number.isInteger(prefix)||prefix<0||prefix>32) throw new Error('Bad prefix'); const ipInt=ipToInt(ipStr); const block=2**(32-prefix); const network=Math.floor(ipInt/block)*block>>>0; const broadcast=(network+block-1)>>>0; let first,last; if(prefix===32){first=network;last=network}else if(prefix===31){first=network;last=broadcast}else{first=(network+1)>>>0;last=(broadcast-1)>>>0} return{prefix,ipInt,ipStr,network,broadcast,first,last,mask:prefixToMask(prefix)} }
 
-    // --------------- Datacenter mapping for BGP second octet ---------------
+    // ---- DC mapping ----
     function dcSecondOctet(dc){ switch((dc||'').toUpperCase()){ case 'IAD':return 101; case 'ORD':return 105; case 'LAX':return 107; default:return 100; } }
 
-    // --------------- Build BGP Leaves blocks (01–04) ---------------
+    // ---- BGP leaves builder ----
     function buildBGPLeaves(vlan, dc){
-      const tag=(vlan&&vlan.length===3)?`40${vlan}`:(vlan?`4${vlan}`:'');
-      const second=dcSecondOctet(dc);
-      const leaves=[6,7,8,9];
-      return leaves.map((octet,idx)=>{
-        const n=String(idx+1).padStart(2,'0');
-        return `Section Name: BGP SVC Leaf${n}\nVlan ${vlan}\n     rd 10.${second}.220.${octet}:${tag}\n     route-target both ${tag}:${tag}\n     redistribute learned`;
-      }).join('\n\n');
+      const tag=(vlan&&String(vlan).length===3)?('40'+vlan):(vlan?('4'+vlan):'');
+      const second=dcSecondOctet(dc); const leaves=[6,7,8,9];
+      return leaves.map(o=>`Vlan ${vlan}\n     rd 10.${second}.220.${o}:${tag}\n     route-target both ${tag}:${tag}\n     redistribute learned`).join('\n\n');
     }
 
-    // --------------- Tabs (Arista) ---------------
-    function activateTab(id){ ['wanvlan','vcgvlan','route','bgp','all'].forEach(t=>{ const tab=document.querySelector(`.tab[data-tab="${t}"]`); if(tab) tab.classList.toggle('active', t===id); const sec=document.querySelector(`#sec-${t}`); if(sec) sec.style.display=(t===id?'block':'none'); }); }
+    // ---- Tabs ----
+    function activateTab(id){ ['all','wanvlan','vcgvlan','route','bgp'].forEach(t=>{ const tab=document.querySelector(`.tab[data-tab="${t}"]`); if(tab) tab.classList.toggle('active', t===id); const sec=document.querySelector(`#sec-${t}`); if(sec) sec.style.display=(t===id?'block':'none'); }); }
 
-    // --------------- Router (page nav) ---------------
-    function setActiveNav(){ const hash = location.hash || '#home'; $$('#topnav a[data-route]').forEach(a=>a.classList.toggle('active', a.getAttribute('href')===hash)); }
-    function showPageFromHash(){ const id=(location.hash||'#home').slice(1); $$('.page').forEach(p=>p.classList.remove('active')); const page=document.getElementById(`page-${id}`); if(page){ page.classList.add('active'); } setActiveNav(); }
-    document.addEventListener('click', (e)=>{ const a=e.target.closest('a[data-route]'); if(!a) return; e.preventDefault(); const href=a.getAttribute('href')||'#home'; if(location.hash!==href){ history.pushState(null,'',href);} showPageFromHash(); });
+    // ---- Router ----
+    function setActiveNav(){ const hash=location.hash||'#home'; qq('#topnav a[data-route]').forEach(a=>a.classList.toggle('active', a.getAttribute('href')===hash)); }
+    function showPageFromHash(){ const id=(location.hash||'#home').slice(1); qq('.page').forEach(p=>p.classList.remove('active')); const page=document.getElementById('page-'+id); if(page){ page.classList.add('active'); } setActiveNav(); }
+
+    document.addEventListener('click', (e)=>{ const a=e.target.closest && e.target.closest('a[data-route]'); if(!a) return; e.preventDefault(); const href=a.getAttribute('href')||'#home'; if(location.hash!==href){ try{ history.pushState(null,'',href);}catch(_){ location.hash=href; } } showPageFromHash(); });
     window.addEventListener('popstate', showPageFromHash);
     window.addEventListener('hashchange', showPageFromHash);
 
-    // --------------- Compute & Render all derived outputs ---------------
+    // ---- Compute & render ----
     function compute(){
-      // Read inputs
-      const cust=$('#custName')?.value.trim()||'';
-      const sfid=$('#sfid')?.value.trim()||'';
-      const dc=$('#dc')?.value.trim()||'';
-      const wan=$('#wanVlan')?.value.trim()||'';
-      const vcg=$('#vcgVlan')?.value.trim()||'';
-      const cidr=$('#cidr')?.value.trim()||'';
+      const cust=(q('#custName')||{}).value ? q('#custName').value.trim() : '';
+      const sfid=(q('#sfid')||{}).value ? q('#sfid').value.trim() : '';
+      const dc=(q('#dc')||{}).value ? q('#dc').value.trim() : '';
+      const wan=(q('#wanVlan')||{}).value ? q('#wanVlan').value.trim() : '';
+      const vcg=(q('#vcgVlan')||{}).value ? q('#vcgVlan').value.trim() : '';
+      const cidr=(q('#cidr')||{}).value ? q('#cidr').value.trim() : '';
 
-      // Previews for WAN/VCG names
-      const wn=$('#wanNamePreview'); const vn=$('#vcgNamePreview');
+      const wn=q('#wanNamePreview'); const vn=q('#vcgNamePreview');
       if(wn) wn.textContent = cust?`${cust} - WAN`:'(auto)';
       if(vn) vn.textContent = cust?`${cust} - VCG`:'(auto)';
 
-      // IP math: gateway, firewall, mask, prefix
       let gw='—', fw='—', mask='—', prefix='—';
       try{
-        const parsed=parseCIDR(cidr);
-        prefix=parsed.prefix; mask=parsed.mask.dotted;
+        const parsed=parseCIDR(cidr); prefix=parsed.prefix; mask=parsed.mask.dotted;
         if(parsed.prefix===32){ gw=fw='—'; }
         else if(parsed.prefix===31){ gw=intToIp(parsed.ipInt); fw=intToIp((parsed.ipInt+1)>>>0); }
         else { gw=intToIp(parsed.first); const second=Math.min(parsed.last,(parsed.first+1)>>>0); fw=intToIp(second); }
-      }catch(e){ /* ignore until valid CIDR */ }
+      }catch(e){ /* invalid CIDR -> keep placeholders */ }
 
-      // Fill stacked IPAM summary (incl. new lines)
-      $('#gw')&&($('#gw').textContent=gw);
-      $('#fw')&&($('#fw').textContent=fw);
-      $('#mask')&&($('#mask').textContent=mask);
-      const desc=(dc&&cust&&sfid)?`(${dc}) - ${cust} - ${sfid}`:'—';
-      $('#desc')&&($('#desc').textContent=desc);
-      $('#kvWanVlan')&&($('#kvWanVlan').textContent=wan||'—');
-      $('#kvDc')&&($('#kvDc').textContent=dc||'—');
+      if(q('#gw')) q('#gw').textContent=gw;
+      if(q('#fw')) q('#fw').textContent=fw;
+      if(q('#mask')) q('#mask').textContent=mask;
+      const desc=(dc&&cust&&sfid)?`(${dc}) - ${cust} - ${sfid}`:'—'; if(q('#desc')) q('#desc').textContent=desc;
+      if(q('#kvWanVlan')) q('#kvWanVlan').textContent=wan||'—';
+      if(q('#kvDc')) q('#kvDc').textContent=dc||'—';
 
-      // Section outputs (Arista)
       const secWAN = `vlan ${wan}\n      name ${cust}-${sfid}-WAN`;
       const secVCG = `vlan ${vcg}\n    name ${cust}-${sfid}-VCG`;
       const secRoute = `interface Vlan${wan}\n  description ${cust}-${sfid}-WAN\n  vrf RS-INET\n  ip address ${gw} ${mask}`;
       const secBGP = buildBGPLeaves(wan, dc);
       const secBGPVCG = (dc==='IAD' ? buildBGPLeaves(vcg, dc) : '');
 
-      // Inject into code blocks
-      const codeWan=$('#code-wanvlan'), codeVcg=$('#code-vcgvlan'), codeRoute=$('#code-route'), codeBgp=$('#code-bgp'), codeAll=$('#code-all');
-      if(codeWan) codeWan.textContent = secWAN;
-      if(codeVcg) codeVcg.textContent = secVCG;
-      if(codeRoute) codeRoute.textContent = secRoute;
-      if(codeBgp) codeBgp.textContent = secBGP;
+      if(q('#code-wanvlan')) q('#code-wanvlan').textContent=secWAN;
+      if(q('#code-vcgvlan')) q('#code-vcgvlan').textContent=secVCG;
+      if(q('#code-route')) q('#code-route').textContent=secRoute;
+      if(q('#code-bgp')) q('#code-bgp').textContent=secBGP;
 
-      // IAD-only extra BGP for VCG VLAN
-      const dontEl=$('#dontforget'); const codeBgpVcg=$('#code-bgp-vcg');
+      const dontEl=q('#dontforget'); const codeBgpVcg=q('#code-bgp-vcg');
       if(dontEl) dontEl.style.display = (dc==='IAD' ? 'block' : 'none');
       if(codeBgpVcg) codeBgpVcg.textContent = secBGPVCG;
 
-      // All sections combined (for convenience)
-      if(codeAll){
-        const parts=[ 'Section Name: WAN VLAN',secWAN,'','Section Name: VCG VLAN',secVCG,'','Section Name: Route',secRoute,'','Section Name: BGP SVC Leaves 01–04',secBGP ];
-        if(dc==='IAD'){ parts.push('', "Don't Forget!! (IAD only)", secBGPVCG); }
-        codeAll.textContent = parts.join('\n');
-      }
+      const parts=[ secWAN,'',secVCG,'',secRoute,'',secBGP ]; if(dc==='IAD'){ parts.push('', secBGPVCG); }
+      if(q('#code-all')) q('#code-all').textContent=parts.join('\n');
 
-      // DAL banner callout on Arista page
-      const dalBanner=$('#dalBanner'); if(dalBanner) dalBanner.style.display=(dc==='DAL'?'block':'none');
+      const dalBanner=q('#dalBanner'); if(dalBanner) dalBanner.style.display=(dc==='DAL'?'block':'none');
 
-      // Static Route helper output (if visible)
-      const staticSubnet = $('#staticSubnet')?.value.trim();
-      if(staticSubnet){
-        const out = `ip route vrf RS-INET ${staticSubnet} ${fw} tag 10 name ${cust}-addtl`;
-        const node = $('#staticOut'); if(node) node.textContent = out;
-      }
+      const routes = qq('.static-route').map(i=>i.value.trim()).filter(Boolean);
+      if(routes.length){
+        const cmds = routes.map(r=>`ip route vrf RS-INET ${r} ${fw} tag 10 name ${cust}-addtl`).join('\n');
+        if(q('#staticOut')) q('#staticOut').textContent=cmds;
+      } else { if(q('#staticOut')) q('#staticOut').textContent=''; }
 
-      // DCNM (Dallas) page content blocks, auto-filled
-      const netId=(wan&&wan.length===3)?`40${wan}`:(wan?`4${wan}`:'');
-      const netInfo=[
-        `Network ID - ${netId}`,
-        `Network Name - ${cust}-WAN`,
-        `VRF Name - Leave as default`,
-        `Layer 2 Only - Leave as default`,
-        `Network Template - Leave as default`,
-        `Network Extension Template - Leave as default`,
-        `VLAN ID - ${wan}`
-      ].join('\n');
-      const netProfile=[
-        `IPv4 Gateway/NetMask - ${gw}/${prefix}`,
-        `IPv6 Gateway/Prefix - Leave as default`,
-        `VLAN Name - ${cust}-WAN`,
-        `Interface Description - ${cust}-${sfid}-WAN`,
-        `MTU for L3 interface - Leave as default`,
-        `IPv4 Secondary GW1 - Leave as default`,
-        `IPv4 Secondary GW2 - Leave as default`,
-        `IPv4 Secondary GW3 - Leave as default`,
-        `IPv4 Secondary GW4 - Leave as default`
-      ].join('\n');
-      const adv=[
-        `ARP Suppression - Tick the box`,
-        `Ingress Replication - Leave as default`,
-        `Multicast Group Address - Leave as default`,
-        `DHCPv4 Server 1 - Leave as default`,
-        `DHCPv4 Server VRF - Leave as default`,
-        `DHCPv4 Server 2 - Leave as default`,
-        `DHCPv4 Server2 VRF - Leave as default`,
-        `Loopback ID for DHCP Relay interface - Leave as default`,
-        `Routing Tag - 1000`,
-        `TRM Enable - Leave as default`,
-        `L2 VNI Route-Target Both Enable - Leave as default`,
-        `Enable L3 Gateway on Border - Leave as default`
-      ].join('\n');
-      const dn=$('#dcnm-netinfo'), dp=$('#dcnm-netprofile'), da=$('#dcnm-advanced');
-      if(dn) dn.textContent = netInfo;
-      if(dp) dp.textContent = netProfile;
-      if(da) da.textContent = adv;
+      const netId=(wan && String(wan).length===3)?(`40${wan}`):(wan?(`4${wan}`):'');
+      const vlanNameRaw = `${cust}-WAN`; const vlanName = vlanNameRaw.length>30 ? vlanNameRaw.slice(0,30) : vlanNameRaw; const showWarn = vlanNameRaw.length>30;
+
+      const netInfo=[`Network ID - ${netId}`,`Network Name - ${cust}-WAN`,`VRF Name - Leave as default`,`Layer 2 Only - Leave as default`,`Network Template - Leave as default`,`Network Extension Template - Leave as default`,`VLAN ID - ${wan}`].join('\n');
+      const netProfile=[`IPv4 Gateway/NetMask - ${gw}/${prefix}`,`IPv6 Gateway/Prefix - Leave as default`,`VLAN Name - ${vlanName}`,`Interface Description - ${cust}-${sfid}-WAN`,`MTU for L3 interface - Leave as default`,`IPv4 Secondary GW1 - Leave as default`,`IPv4 Secondary GW2 - Leave as default`,`IPv4 Secondary GW3 - Leave as default`,`IPv4 Secondary GW4 - Leave as default`].join('\n');
+      const adv=[`ARP Suppression - Tick the box`,`Ingress Replication - Leave as default`,`Multicast Group Address - Leave as default`,`DHCPv4 Server 1 - Leave as default`,`DHCPv4 Server VRF - Leave as default`,`DHCPv4 Server 2 - Leave as default`,`DHCPv4 Server2 VRF - Leave as default`,`Loopback ID for DHCP Relay interface - Leave as default`,`Routing Tag - 1000`,`TRM Enable - Leave as default`,`L2 VNI Route-Target Both Enable - Leave as default`,`Enable L3 Gateway on Border - Leave as default`].join('\n');
+      if(q('#dcnm-netinfo')) q('#dcnm-netinfo').textContent=netInfo;
+      if(q('#dcnm-netprofile')) q('#dcnm-netprofile').textContent=netProfile;
+      if(q('#dcnm-advanced')) q('#dcnm-advanced').textContent=adv;
+      const warnEl=q('#vlanNameWarning'); if(warnEl) warnEl.style.display=showWarn?'block':'none';
+
+      showOK('JS initialized ✔');
     }
 
-    // --------------- Local-In Policy (Page 3) generator ---------------
+    // ---- Local-In builder ----
     function buildLocalInConfig(intf){
       return `config firewall address\nedit "RS-MGMT-Block"\nset subnet 184.189.47.0/27\nnext\nedit "Ansible1"\nset subnet 185.159.5.146 255.255.255.255\nnext\nedit "Ansible2"\nset subnet 185.159.5.148 255.255.255.255\nnext\nedit "RS-SNMP"\nset subnet 185.159.5.148 255.255.255.255\nnext\nedit "RS_PRTG_SNMP1"\nset subnet 103.219.222.45 255.255.255.255\nnext\nedit "RS_PRTG_SNMP2"\nset subnet 98.186.17.128 255.255.255.128\nnext\nend\n\nconfig firewall addrgrp\nedit "FirewallAccess_WAN"\nset member "RS-MGMT-Block" "Ansible1" "Ansible2"\nnext\nedit "RS_PRTG_MON"\nset member "RS_PRTG_SNMP1" "RS_PRTG_SNMP2"\nnext\nend\n\nconfig firewall service custom\nedit "9443"\nset category "Remote Access"\nset tcp-portrange 9443\nnext\nedit "922"\nset category "Remote Access"\nset tcp-portrange 922\nnext\nend \n\nconfig firewall local-in-policy\nedit 1\nset intf "${intf}"\nset srcaddr "FirewallAccess_WAN"\nset dstaddr "all"\nset action accept\nset service "9443"\nset schedule "always"\nnext\nedit 2\nset intf "${intf}"\nset srcaddr "FirewallAccess_WAN"\nset dstaddr "all"\nset action accept\nset service "922"\nset schedule "always"\nnext\nedit 3\nset intf "${intf}"\nset srcaddr "RS_PRTG_MON"\nset dstaddr "all"\nset action accept\nset service "SNMP"\nset schedule "always"\nnext\nedit 4\nset intf "${intf}"\nset srcaddr "RS_PRTG_MON"\nset dstaddr "all"\nset action accept\nset service "ALL_ICMP"\nset schedule "always"\nnext \nedit 50\nset intf "${intf}"\nset srcaddr "all"\nset dstaddr "all"\nset service "9443"\nset schedule "always"\nnext\nedit 51\nset intf "${intf}"\nset srcaddr "all"\nset dstaddr "all"\nset service "SNMP"\nset schedule "always"\nnext\nedit 52\nset intf "${intf}"\nset srcaddr "all"\nset dstaddr "all"\nset service "922"\nset schedule "always"\nnext\nend`;
     }
 
-    // --------------- Export / Import helpers ---------------
+    // ---- Export / Import helpers ----
     function collectState(){
-      return {
-        version: 2,
-        savedAt: new Date().toISOString(),
-        fields: {
-          custName: $('#custName')?.value||'',
-          sfid: $('#sfid')?.value||'',
-          dc: $('#dc')?.value||'',
-          wanVlan: $('#wanVlan')?.value||'',
-          vcgVlan: $('#vcgVlan')?.value||'',
-          cidr: $('#cidr')?.value||''
-        }
-      };
+      return { version:3, savedAt:new Date().toISOString(), fields:{ custName:(q('#custName')||{}).value||'', sfid:(q('#sfid')||{}).value||'', dc:(q('#dc')||{}).value||'', wanVlan:(q('#wanVlan')||{}).value||'', vcgVlan:(q('#vcgVlan')||{}).value||'', cidr:(q('#cidr')||{}).value||'' } };
     }
     function applyState(obj){
-      if(!obj || !obj.fields) return;
-      const f=obj.fields;
-      if($('#custName')) $('#custName').value = f.custName||'';
-      if($('#sfid')) $('#sfid').value = f.sfid||'';
-      if($('#dc')) $('#dc').value = f.dc||'';
-      if($('#wanVlan')) $('#wanVlan').value = f.wanVlan||'';
-      if($('#vcgVlan')) $('#vcgVlan').value = f.vcgVlan||'';
-      if($('#cidr')) $('#cidr').value = f.cidr||'';
+      if(!obj||!obj.fields) return; const f=obj.fields;
+      if(q('#custName')) q('#custName').value=f.custName||'';
+      if(q('#sfid')) q('#sfid').value=f.sfid||'';
+      if(q('#dc')) q('#dc').value=f.dc||'';
+      if(q('#wanVlan')) q('#wanVlan').value=f.wanVlan||'';
+      if(q('#vcgVlan')) q('#vcgVlan').value=f.vcgVlan||'';
+      if(q('#cidr')) q('#cidr').value=f.cidr||'';
       compute();
     }
+    function doExport(){ const state=collectState(); const name=(state.fields.custName||'Customer').replace(/[^A-Za-z0-9_-]+/g,'_'); const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`CustomerBuildSheet_${name}_${Date.now()}.json`; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },0); }
+    function doImport(file){ const r=new FileReader(); r.onload=()=>{ try{ const obj=JSON.parse(r.result); applyState(obj); alert('Import successful'); }catch(_){ alert('Invalid JSON file.'); } }; r.readAsText(file); }
 
-    function doExport(){
-      const state = collectState();
-      const name = (state.fields.custName||'Customer').replace(/[^A-Za-z0-9_-]+/g,'_');
-      const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `CustomerBuildSheet_${name}_${Date.now()}.json`;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 0);
-    }
-
-    function doImport(file){
-      const reader = new FileReader();
-      reader.onload = () => {
-        try{
-          const obj = JSON.parse(reader.result);
-          applyState(obj);
-          alert('Import successful');
-        }catch(err){ alert('Invalid JSON file.'); }
-      };
-      reader.readAsText(file);
-    }
-
-    // --------------- Bootstrap the app ---------------
+    // ---- Bootstrap ----
     function init(){
-      // Recompute on every input change
-      ['input','change'].forEach(evt=>['#custName','#sfid','#dc','#wanVlan','#vcgVlan','#cidr','#staticSubnet'].forEach(sel=>{ const n=document.querySelector(sel); if(n) n.addEventListener(evt,compute); }));
+      ['input','change'].forEach(evt=>['#custName','#sfid','#dc','#wanVlan','#vcgVlan','#cidr'].forEach(sel=>{ const n=document.querySelector(sel); if(n) n.addEventListener(evt,compute); }));
 
-      // Tabs (Arista)
-      $$('.tab').forEach(t=>t.addEventListener('click',()=>activateTab(t.dataset.tab)));
+      let staticCount=1; const addBtn=q('#btnAddRoute'); if(addBtn) addBtn.addEventListener('click',()=>{ staticCount++; const row=document.createElement('div'); row.className='field static-row'; row.innerHTML=`<label>Route #${staticCount}</label><input class="static-route" placeholder="203.0.113.${10+staticCount}/32" />`; const host=q('#staticRoutes'); if(host) host.appendChild(row); });
 
-      // Copy buttons (any page)
-      document.addEventListener('click',(e)=>{
-        const btn=e.target.closest('[data-copy]'); if(!btn) return;
-        const id=btn.getAttribute('data-copy'); const node=document.getElementById(id); if(!node) return;
-        navigator.clipboard.writeText(node.textContent).then(()=>{btn.textContent='Copied'; setTimeout(()=>btn.textContent='Copy',1000);});
-      });
+      const buildBtn=q('#btnNeedStatic'); if(buildBtn) buildBtn.addEventListener('click', compute);
 
-      // Reveal/hide Static Route helper
-      const staticBtn = document.getElementById('btnNeedStatic');
-      if(staticBtn) staticBtn.addEventListener('click',()=>{ const f=$('#staticForm'); if(f) f.style.display=(f.style.display==='none'?'block':'none'); });
+      qq('.tab').forEach(t=>t.addEventListener('click',()=>activateTab(t.dataset.tab)));
 
-      // Local-In Policy page handlers
-      const genLocal = document.getElementById('generateLocal');
-      const copyLocal = document.getElementById('copyLocal');
-      if(genLocal) genLocal.addEventListener('click',()=>{
-        const intf = document.getElementById('localInterface')?.value || 'wan1';
-        const out = buildLocalInConfig(intf);
-        const node = document.getElementById('localOutput'); if(node) node.textContent = out;
-      });
-      if(copyLocal) copyLocal.addEventListener('click',()=>{
-        const out = document.getElementById('localOutput')?.textContent || '';
-        if(!out) return;
-        navigator.clipboard.writeText(out);
-      });
+      document.addEventListener('click',(e)=>{ const btn=e.target && e.target.closest ? e.target.closest('[data-copy]') : null; if(!btn) return; const id=btn.getAttribute('data-copy'); const node=document.getElementById(id); if(!node) return; navigator.clipboard.writeText(node.textContent).then(()=>{ btn.textContent='Copied'; setTimeout(()=>btn.textContent='Copy',900); }); });
 
-      // Export / Import buttons
-      const expBtn = document.getElementById('btnExport');
-      const impBtn = document.getElementById('btnImport');
-      const impFile = document.getElementById('fileImport');
-      if(expBtn) expBtn.addEventListener('click', doExport);
-      if(impBtn) impBtn.addEventListener('click', ()=> impFile && impFile.click());
-      if(impFile) impFile.addEventListener('change', (e)=>{ const f=e.target.files?.[0]; if(f) doImport(f); e.target.value=''; });
+      const localSel=q('#localInterface'); if(localSel) localSel.addEventListener('change', (e)=>{ const useCustom=(e.target && e.target.value)==='custom'; const row=q('#customIntfRow'); if(row) row.style.display=useCustom?'grid':'none'; });
+      const genLocal=q('#generateLocal'); const copyLocal=q('#copyLocal');
+      if(genLocal) genLocal.addEventListener('click',()=>{ let intf=(q('#localInterface')||{}).value||'wan1'; if(intf==='custom'){ const v=(q('#localCustomIntf')||{}).value; if(v && v.trim()) intf=v.trim(); } const out=buildLocalInConfig(intf); const node=q('#localOutput'); if(node) node.textContent=out; });
+      if(copyLocal) copyLocal.addEventListener('click',()=>{ const out=(q('#localOutput')||{}).textContent||''; if(!out) return; navigator.clipboard.writeText(out); });
 
-      // Sample + Reset
-      const smp=document.getElementById('btnSample');
-      if(smp) smp.addEventListener('click',()=>{ $('#custName').value='NobleGrid Networks'; $('#sfid').value='0065x00000AbCdE'; $('#dc').value='DAL'; $('#wanVlan').value='210'; $('#vcgVlan').value='1210'; $('#cidr').value='100.100.100.1/31'; compute(); });
-      const rst=document.getElementById('btnReset');
-      if(rst) rst.addEventListener('click',()=>{ ['#custName','#sfid','#wanVlan','#vcgVlan','#cidr','#staticSubnet'].forEach(sel=>{ const n=$(sel); if(n) n.value=''; }); const dc=$('#dc'); if(dc) dc.value=''; compute(); });
+      const expBtn=q('#btnExport'); if(expBtn) expBtn.addEventListener('click', doExport);
+      const impBtn=q('#btnImport'); const impFile=q('#fileImport'); if(impBtn) impBtn.addEventListener('click', ()=>{ if(impFile) impFile.click(); }); if(impFile) impFile.addEventListener('change', (e)=>{ const f=e && e.target && e.target.files ? e.target.files[0] : null; if(f) doImport(f); e.target.value=''; });
 
-      // Router startup
+      const smp=q('#btnSample'); if(smp) smp.addEventListener('click',()=>{ if(q('#custName')) q('#custName').value='NobleGrid Networks'; if(q('#sfid')) q('#sfid').value='0065x00000AbCdE'; if(q('#dc')) q('#dc').value='DAL'; if(q('#wanVlan')) q('#wanVlan').value='210'; if(q('#vcgVlan')) q('#vcgVlan').value='1210'; if(q('#cidr')) q('#cidr').value='100.100.100.1/31'; compute(); });
+      const rst=q('#btnReset'); if(rst) rst.addEventListener('click',()=>{ ['#custName','#sfid','#wanVlan','#vcgVlan','#cidr'].forEach(sel=>{ const n=q(sel); if(n) n.value=''; }); const dc=q('#dc'); if(dc) dc.value=''; qq('.static-route').forEach((n,i)=>{ if(i===0){n.value='';} else { if(n.parentElement) n.parentElement.remove(); } }); compute(); });
+
       window.addEventListener('popstate', showPageFromHash);
       window.addEventListener('hashchange', showPageFromHash);
-      showPageFromHash(); // set initial page
+      showPageFromHash();
 
-      // Defaults
-      activateTab('wanvlan');
-      compute(); // initial render
+      activateTab('all');
+      compute();
+      showOK('Ready ✔');
     }
 
-    // DOM ready
-    if(document.readyState==='loading'){
-      document.addEventListener('DOMContentLoaded', init);
-    } else { init(); }
+    if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', ()=>{ try{ init(); }catch(e){ showErr('Init failed: '+e.message); } }); }
+    else { try{ init(); }catch(e){ showErr('Init failed: '+e.message); } }
   </script>
 </body>
 </html>
