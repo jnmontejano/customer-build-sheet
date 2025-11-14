@@ -69,9 +69,10 @@
     .btn.primary { border-color: transparent; background: linear-gradient(135deg, var(--accent), var(--accent-2)); color:#fff; }
     .btn:hover { transform: translateY(-1px); }
 
-    /* ---------- Info Badges ---------- */
-    .badges { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
-    .badge { font-family: var(--mono); font-size:12px; color:#fff; padding:6px 8px; border-radius:999px; border:1px solid rgba(255,255,255,0.14); background:rgba(255,255,255,0.06); }
+    /* ---------- New stacked key/values for IPAM summary ---------- */
+    .kv { display:grid; grid-template-columns: 120px 1fr; gap: 8px 12px; margin-top: 8px; }
+    .kv .k { color: var(--muted); }
+    .kv .v { padding: 6px 10px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; font-family: var(--mono); }
 
     /* ---------- Page Switching ---------- */
     .page { display:none; background-color: #0b0f1a; }
@@ -88,6 +89,9 @@
 
     /* ---------- DAL Action Banner ---------- */
     .banner { margin: 10px 0; padding: 14px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); text-align:center; font-size: 22px; font-weight: 700; letter-spacing: .3px; display:none; }
+
+    /* ---------- Info Note on Home ---------- */
+    .note { border:1px dashed rgba(255,255,255,0.25); background: rgba(255,255,255,0.05); border-radius: 14px; padding: 12px 14px; color: #dbe2f1; }
   </style>
 </head>
 
@@ -99,6 +103,9 @@
       <div class="row">
         <button class="btn" id="btnReset">Reset</button>
         <button class="btn primary" id="btnSample">Load Sample</button>
+        <button class="btn" id="btnExport" title="Export form data to JSON">Export</button>
+        <button class="btn" id="btnImport" title="Import JSON into form">Import</button>
+        <input type="file" id="fileImport" accept="application/json,.json" style="display:none" />
       </div>
     </header>
 
@@ -111,8 +118,24 @@
       <a href="#future" data-route>Page 4: Placeholder</a>
     </nav>
 
-    <!-- ===================== HOME (INPUTS) ===================== -->
+    <!-- ===================== HOME (INFO + INPUTS) ===================== -->
     <section id="page-home" class="page active">
+      <!-- How to Use box -->
+      <div class="card" style="margin-bottom:14px;">
+        <h2>How to Use</h2>
+        <div class="content">
+          <ol>
+            <li>Enter Customer, Salesforce ID, Datacenter, VLANs, and IPAM Public IP (CIDR).</li>
+            <li>Switch to <strong>Page 1: Arista's</strong> to copy CLI outputs, or use the Static Route helper.</li>
+            <li>For Dallas, see <strong>Page 2: DCNM</strong>. For Local-In policy, use <strong>Page 3</strong>.</li>
+          </ol>
+          <div class="note" style="margin-top:10px;">
+            This build sheet is meant to be used as a helping tool for keeping all of your Build info in a singular spot which makes it more efficient. It's a live tool and subject to frequent changes.
+          </div>
+        </div>
+      </div>
+
+      <!-- Inputs -->
       <div class="card">
         <h2>Inputs</h2>
         <div class="content" id="formArea">
@@ -129,11 +152,15 @@
           <div class="field"><label for="vcgVlan">VCG VLAN</label><input id="vcgVlan" inputmode="numeric" placeholder="210" /></div>
           <div class="field"><label></label><div class="muted">VCG Name → <span id="vcgNamePreview">(auto)</span></div></div>
           <div class="field"><label for="cidr">IPAM Public IP (CIDR)</label><input id="cidr" placeholder="198.51.100.32/28" /></div>
-          <div class="badges">
-            <div class="badge">Gateway: <span id="gw">—</span></div>
-            <div class="badge">Firewall: <span id="fw">—</span></div>
-            <div class="badge">Mask: <span id="mask">—</span></div>
-            <div class="badge">Desc: <span id="desc">—</span></div>
+
+          <!-- Stacked IPAM summary (expanded) -->
+          <div class="kv" id="ipamSummary">
+            <div class="k">Gateway:</div><div class="v"><span id="gw">—</span></div>
+            <div class="k">Firewall:</div><div class="v"><span id="fw">—</span></div>
+            <div class="k">Mask:</div><div class="v"><span id="mask">—</span></div>
+            <div class="k">Desc:</div><div class="v"><span id="desc">—</span></div>
+            <div class="k">WAN VLAN:</div><div class="v"><span id="kvWanVlan">—</span></div>
+            <div class="k">Datacenter:</div><div class="v"><span id="kvDc">—</span></div>
           </div>
         </div>
       </div>
@@ -313,12 +340,14 @@
         else { gw=intToIp(parsed.first); const second=Math.min(parsed.last,(parsed.first+1)>>>0); fw=intToIp(second); }
       }catch(e){ /* ignore until valid CIDR */ }
 
-      // Fill badges
+      // Fill stacked IPAM summary (incl. new lines)
       $('#gw')&&($('#gw').textContent=gw);
       $('#fw')&&($('#fw').textContent=fw);
       $('#mask')&&($('#mask').textContent=mask);
       const desc=(dc&&cust&&sfid)?`(${dc}) - ${cust} - ${sfid}`:'—';
       $('#desc')&&($('#desc').textContent=desc);
+      $('#kvWanVlan')&&($('#kvWanVlan').textContent=wan||'—');
+      $('#kvDc')&&($('#kvDc').textContent=dc||'—');
 
       // Section outputs (Arista)
       const secWAN = `vlan ${wan}\n      name ${cust}-${sfid}-WAN`;
@@ -403,6 +432,57 @@
       return `config firewall address\nedit "RS-MGMT-Block"\nset subnet 184.189.47.0/27\nnext\nedit "Ansible1"\nset subnet 185.159.5.146 255.255.255.255\nnext\nedit "Ansible2"\nset subnet 185.159.5.148 255.255.255.255\nnext\nedit "RS-SNMP"\nset subnet 185.159.5.148 255.255.255.255\nnext\nedit "RS_PRTG_SNMP1"\nset subnet 103.219.222.45 255.255.255.255\nnext\nedit "RS_PRTG_SNMP2"\nset subnet 98.186.17.128 255.255.255.128\nnext\nend\n\nconfig firewall addrgrp\nedit "FirewallAccess_WAN"\nset member "RS-MGMT-Block" "Ansible1" "Ansible2"\nnext\nedit "RS_PRTG_MON"\nset member "RS_PRTG_SNMP1" "RS_PRTG_SNMP2"\nnext\nend\n\nconfig firewall service custom\nedit "9443"\nset category "Remote Access"\nset tcp-portrange 9443\nnext\nedit "922"\nset category "Remote Access"\nset tcp-portrange 922\nnext\nend \n\nconfig firewall local-in-policy\nedit 1\nset intf "${intf}"\nset srcaddr "FirewallAccess_WAN"\nset dstaddr "all"\nset action accept\nset service "9443"\nset schedule "always"\nnext\nedit 2\nset intf "${intf}"\nset srcaddr "FirewallAccess_WAN"\nset dstaddr "all"\nset action accept\nset service "922"\nset schedule "always"\nnext\nedit 3\nset intf "${intf}"\nset srcaddr "RS_PRTG_MON"\nset dstaddr "all"\nset action accept\nset service "SNMP"\nset schedule "always"\nnext\nedit 4\nset intf "${intf}"\nset srcaddr "RS_PRTG_MON"\nset dstaddr "all"\nset action accept\nset service "ALL_ICMP"\nset schedule "always"\nnext \nedit 50\nset intf "${intf}"\nset srcaddr "all"\nset dstaddr "all"\nset service "9443"\nset schedule "always"\nnext\nedit 51\nset intf "${intf}"\nset srcaddr "all"\nset dstaddr "all"\nset service "SNMP"\nset schedule "always"\nnext\nedit 52\nset intf "${intf}"\nset srcaddr "all"\nset dstaddr "all"\nset service "922"\nset schedule "always"\nnext\nend`;
     }
 
+    // --------------- Export / Import helpers ---------------
+    function collectState(){
+      return {
+        version: 2,
+        savedAt: new Date().toISOString(),
+        fields: {
+          custName: $('#custName')?.value||'',
+          sfid: $('#sfid')?.value||'',
+          dc: $('#dc')?.value||'',
+          wanVlan: $('#wanVlan')?.value||'',
+          vcgVlan: $('#vcgVlan')?.value||'',
+          cidr: $('#cidr')?.value||''
+        }
+      };
+    }
+    function applyState(obj){
+      if(!obj || !obj.fields) return;
+      const f=obj.fields;
+      if($('#custName')) $('#custName').value = f.custName||'';
+      if($('#sfid')) $('#sfid').value = f.sfid||'';
+      if($('#dc')) $('#dc').value = f.dc||'';
+      if($('#wanVlan')) $('#wanVlan').value = f.wanVlan||'';
+      if($('#vcgVlan')) $('#vcgVlan').value = f.vcgVlan||'';
+      if($('#cidr')) $('#cidr').value = f.cidr||'';
+      compute();
+    }
+
+    function doExport(){
+      const state = collectState();
+      const name = (state.fields.custName||'Customer').replace(/[^A-Za-z0-9_-]+/g,'_');
+      const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `CustomerBuildSheet_${name}_${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 0);
+    }
+
+    function doImport(file){
+      const reader = new FileReader();
+      reader.onload = () => {
+        try{
+          const obj = JSON.parse(reader.result);
+          applyState(obj);
+          alert('Import successful');
+        }catch(err){ alert('Invalid JSON file.'); }
+      };
+      reader.readAsText(file);
+    }
+
     // --------------- Bootstrap the app ---------------
     function init(){
       // Recompute on every input change
@@ -435,6 +515,14 @@
         if(!out) return;
         navigator.clipboard.writeText(out);
       });
+
+      // Export / Import buttons
+      const expBtn = document.getElementById('btnExport');
+      const impBtn = document.getElementById('btnImport');
+      const impFile = document.getElementById('fileImport');
+      if(expBtn) expBtn.addEventListener('click', doExport);
+      if(impBtn) impBtn.addEventListener('click', ()=> impFile && impFile.click());
+      if(impFile) impFile.addEventListener('change', (e)=>{ const f=e.target.files?.[0]; if(f) doImport(f); e.target.value=''; });
 
       // Sample + Reset
       const smp=document.getElementById('btnSample');
