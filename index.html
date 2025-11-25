@@ -847,11 +847,12 @@
     vdcLines.push('');
     vdcLines.push('To be continued...');
 
-    // Write all VDC steps into the Page 4 <pre> block
     const vdcNode = q('#vdc-steps');
-    if (vdcNode) {
-      vdcNode.textContent = vdcLines.join('\n');
-    }
+    if (vdcNode) vdcNode.textContent = vdcLines.join('\n');
+
+    showOK('JS initialized ✔');
+  }
+
 
   // ---- Export / Import helpers ----
   function collectState() {
