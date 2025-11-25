@@ -280,171 +280,785 @@
   <div id="debugBanner"></div>
 
   <script>
-    'use strict';
+  'use strict';
 
-    // ---- Lightweight selectors with logging (avoid optional chaining) ----
-    function q(sel){ const n=document.querySelector(sel); if(!n) console.warn('Missing node:', sel); return n; }
-    function qq(sel){ return Array.prototype.slice.call(document.querySelectorAll(sel)); }
+  // ---- Lightweight selectors with logging ----
+  function q(sel) {
+    const n = document.querySelector(sel);
+    if (!n) console.warn('Missing node:', sel);
+    return n;
+  }
+  function qq(sel) {
+    return Array.prototype.slice.call(document.querySelectorAll(sel));
+  }
 
-    // ---- Debug banner helpers ----
-    function showOK(msg){ const b=q('#debugBanner'); if(!b) return; b.className=''; b.classList.add('ok'); b.textContent=msg||'JS OK'; }
-    function showErr(msg){ const b=q('#debugBanner'); if(!b) return; b.className=''; b.classList.add('err'); b.textContent=msg; }
+  // ---- Debug banner helpers ----
+  function showOK(msg) {
+    const b = q('#debugBanner');
+    if (!b) return;
+    b.className = '';
+    b.classList.add('ok');
+    b.textContent = msg || 'JS OK';
+  }
+  function showErr(msg) {
+    const b = q('#debugBanner');
+    if (!b) return;
+    b.className = '';
+    b.classList.add('err');
+    b.textContent = msg;
+  }
 
-    // ---- Global error trap ----
-    window.addEventListener('error', (e)=>{ showErr('Error: '+(e && e.message ? e.message : 'unknown')); });
-    window.addEventListener('unhandledrejection', (e)=>{ showErr('Promise: '+(e && e.reason ? e.reason : 'unknown')); });
+  // ---- Global error trap ----
+  window.addEventListener('error', e => {
+    showErr('Error: ' + (e && e.message ? e.message : 'unknown'));
+  });
+  window.addEventListener('unhandledrejection', e => {
+    showErr('Promise: ' + (e && e.reason ? e.reason : 'unknown'));
+  });
 
-    // ---- IP helpers ----
-    function ipToInt(ip){ const p=ip.split('.').map(Number); if(p.length!==4||p.some(n=>!Number.isInteger(n)||n<0||n>255)) throw new Error('Bad IP'); return (((p[0]*256+p[1])*256+p[2])*256+p[3])>>>0 }
-    function intToIp(x){ x=x>>>0; return[(x>>>24)&255,(x>>>16)&255,(x>>>8)&255,x&255].join('.') }
-    function prefixToMask(prefix){ prefix=Number(prefix); if(!(prefix>=0&&prefix<=32)) throw new Error('Bad prefix'); const mask=prefix===0?0:(0xFFFFFFFF<<(32-prefix))>>>0; return{int:mask>>>0,dotted:intToIp(mask>>>0)} }
-    function parseCIDR(cidr){ const parts=(cidr||'').trim().split('/'); if(parts.length!==2) throw new Error('CIDR must be like 203.0.113.0/29'); const ipStr=parts[0]; const pfxStr=parts[1]; const prefix=Number(pfxStr); if(!Number.isInteger(prefix)||prefix<0||prefix>32) throw new Error('Bad prefix'); const ipInt=ipToInt(ipStr); const block=2**(32-prefix); const network=Math.floor(ipInt/block)*block>>>0; const broadcast=(network+block-1)>>>0; let first,last; if(prefix===32){first=network;last=network}else if(prefix===31){first=network;last=broadcast}else{first=(network+1)>>>0;last=(broadcast-1)>>>0} return{prefix,ipInt,ipStr,network,broadcast,first,last,mask:prefixToMask(prefix)} }
+  // ---- IP helpers ----
+  function ipToInt(ip) {
+    const p = ip.split('.').map(Number);
+    if (p.length !== 4 || p.some(n => !Number.isInteger(n) || n < 0 || n > 255)) {
+      throw new Error('Bad IP');
+    }
+    return (((p[0] * 256 + p[1]) * 256 + p[2]) * 256 + p[3]) >>> 0;
+  }
+  function intToIp(x) {
+    x = x >>> 0;
+    return [
+      (x >>> 24) & 255,
+      (x >>> 16) & 255,
+      (x >>> 8) & 255,
+      x & 255
+    ].join('.');
+  }
+  function prefixToMask(prefix) {
+    prefix = Number(prefix);
+    if (!(prefix >= 0 && prefix <= 32)) throw new Error('Bad prefix');
+    const mask = prefix === 0 ? 0 : (0xFFFFFFFF << (32 - prefix)) >>> 0;
+    return { int: mask >>> 0, dotted: intToIp(mask >>> 0) };
+  }
+  function parseCIDR(cidr) {
+    const parts = (cidr || '').trim().split('/');
+    if (parts.length !== 2) throw new Error('CIDR must be like 203.0.113.0/29');
+    const ipStr = parts[0];
+    const pfxStr = parts[1];
+    const prefix = Number(pfxStr);
+    if (!Number.isInteger(prefix) || prefix < 0 || prefix > 32) throw new Error('Bad prefix');
+    const ipInt = ipToInt(ipStr);
+    const block = 2 ** (32 - prefix);
+    const network = Math.floor(ipInt / block) * block >>> 0;
+    const broadcast = (network + block - 1) >>> 0;
+    let first, last;
+    if (prefix === 32) {
+      first = network;
+      last = network;
+    } else if (prefix === 31) {
+      first = network;
+      last = broadcast;
+    } else {
+      first = (network + 1) >>> 0;
+      last = (broadcast - 1) >>> 0;
+    }
+    return {
+      prefix,
+      ipInt,
+      ipStr,
+      network,
+      broadcast,
+      first,
+      last,
+      mask: prefixToMask(prefix)
+    };
+  }
 
-    // ---- DC mapping ----
-    function dcSecondOctet(dc){ switch((dc||'').toUpperCase()){ case 'IAD':return 101; case 'ORD':return 105; case 'LAX':return 107; default:return 100; } }
+  // ---- DC mapping for BGP SVC leaves ----
+  function dcSecondOctet(dc) {
+    switch ((dc || '').toUpperCase()) {
+      case 'IAD': return 101;
+      case 'ORD': return 105;
+      case 'LAX': return 107;
+      default: return 100;
+    }
+  }
 
-    // ---- BGP leaves builder ----
-    function buildBGPLeaves(vlan, dc){
-      const tag=(vlan&&String(vlan).length===3)?('40'+vlan):(vlan?('4'+vlan):'');
-      const second=dcSecondOctet(dc); const leaves=[6,7,8,9];
-      return leaves.map(o=>`Vlan ${vlan}\n     rd 10.${second}.220.${o}:${tag}\n     route-target both ${tag}:${tag}\n     redistribute learned`).join('\n\n');
+  // ---- vSphere/VDC URLs ----
+  function vsphereUrl(dc) {
+    switch ((dc || '').toUpperCase()) {
+      case 'LAX':
+        return 'https://lax01m01vi01vc.rapidscale.local/websso/SAML2/SSO/vsphere.local?SAMLRequest=zVRbb9MwFH7nV0R%2BT5wb2mI1ncrKRKWNlaUgxAtyndPWUmIHHyfp%2Fj1O2kI1wegjD1Ek55zP3%2BWcTG72deV1YFBqlZMoCIkHSuhSqm1OPq%2Fu%2FGtyM30zQV5XDZu1dqee4EcLaL0ZIhjr2m61wrYGU4DppICFKmGfEwc0d2VScTtC76xtkFFa8X0Y1WHUSfeIwPBGlih4BUGl3Yv2sEbUtJg93Me0KB5ph80OzPEz8e60ETASycmGVwjEW8xz8r1MSrHhcZLwSKTlVZmmWbi%2BzrJSZNcbkTk6C1xyRNnB70bE1vFFy5XNSRzGb%2F0o8uN0FYcsuWJJFoRZ9I14S6OtFrp6J9XBmNYopjlKZIrXgMwKNhBmcRCy9aEI2YfVaukvH4vVCNDJEsxHV52Tf1jA0jQh3pdTJvGQiUtJIRtTeP325kiVTI%2BZjRrN5QD8FCuZXhpZK%2BkAfIquBstLbvmEnjM48IkbNniwmC91JcWzN6sq3d8a4Nb5Yk0LY8A1t6%2BTHE5k6W%2FGUtYMVqEFZYlXLAf8Ty2v5EaCuXzu%2FiLi3Pr4Uu%2FpUSxzq1HKwUw8h7k4gJcoR5DOtRyEOV1d3XO3HULXFMUOao6UW2v8EZjGYRTTMKXv986eYZ7wJGiP8hdG3%2FdBnwTabF1DGNGvD%2FfFiOXLcTmEi8XVM%2FvcuJiG69kTKOj5uoKVO%2FuD4P%2BI6hwq2J5TpS%2FDmZ5G9fwHN%2F0J&RelayState=87c20fa2-fbc5-4b60-add7-038d1dc3bca6&SigAlg=http%3A%2F%2Fwww.w3.org%2F2001%2F04%2Fxmldsig-more%23rsa-sha256&Signature=S7SgFwY%2FpAPqMtmw0V93LGzykCBqcmHqjkD8fGASU56oxUhXSsNPlRpa87hZeze58bVht19lR0I8xT1m6CZWx3Kpn5GOASaOgMv9NvCoImg1eaDts5T1CbcZ8ohaj6SafFw363Mc9jFlQF1CUeCUQRK6dX0ydWCmwSUUgYHFiNrSS5YvrGdC%2FwCJYjVJZ1w6TN6XMv6P6ZaYTkl6GraN4cxfPsE9TBjG75XuRMg9kyIKa81yDQP8JHVyhFxaHhGtXwUzDozyNKscGyo3YJtan3U3Q7Dh4tKbYEZttHPTyPlltdl1HSDorPgYybYUETU5HwcjIlMMElHyQrw0qEwzGFM2rx1ZW8sv%2FqC6D4ynsvYJnjE6fGn%2FtTV1cIQTg13rszXswA%2FoE7wvarcthhzqsUFABDvIuL5aVUwb1PJpIFTHGDBibIpwdwGO88WZTy8w7ViZgkSNRrNQocd9eake0CD6Gv5yljimC344VwHD8UgfNyCccP7iCJtsBhl2WZVB&isDiscovery=true&appUrl=https%3A%2F%2Flax01m01vi01vc.rapidscale.local%2Fui%2Flogin';
+      case 'IAD':
+        return 'https://iad01iavc01.rapidscale.local/websso/SAML2/SSO/vsphere.local?SAMLRequest=zVTfb5swEH7fX4H8DgZCmtQKqbJm1SK1KyvZNO1lcuBILIHNfAbS%2F36GJFtUbVEexwuSufvu%2B3FmdrevSqcFjULJmASeTxyQmcqF3Mbky%2FrBnZK7%2BbsZ8qqs2aIxO%2FkCPxtA4ywQQRvbdq8kNhXoFHQrMljJHPYxsUBLWyYkNwP0zpgaGaWC534geJv5gad5LXLMeAleqeyLdrBBVDRdPD2GNE2faYv1DvTxM3EelM5gYBGTgpcIxFktY%2FJjHN1uNsWGh7eTIpgE9smjSVTwEYxvikk0smWYcETRwp9GxMaSRcOliUnoh2M3CNwwWoc%2BG01ZNPZu%2FOl34iRaGZWp8r2QB1caLZniKJBJXgEyk7GeMAs9n20ORcg%2BrteJmzyn6wGgFTnoT7Y6Jpf0s6in%2BvWURtinYfORyAb%2FL4%2BujzzJ%2FJjWIFBfD8BPgZL5VWE1gvaop9AqMDznhs%2Fo%2BfgDmbBmvfrVMlGlyF6dRVmq7l4DN9YRoxYoq24ucywPxG5WwylrO59QgPSECdNevzPDS9FIUBfuW7%2FUHBuenit6%2FSolNnrkIveRjyHudr6tyhHkNa2HFRZUW3VcXspMlVRzHZQcaTcGO0OwDT0g5D6Ef2wt970m4QnQXsUvzG6rvO6kaf01jb4Af329JgOWK4Y7kRmM7H1zLzWNqN%2BPHsBCR3flLC2Z38R%2FB9RXUIJ23Oq9G0489Oenv%2FU5r8A&RelayState=f11cc8cf-0081-4641-a646-af42db1aa17f&SigAlg=http%3A%2F%2Fwww.w3.org%2F2001%2F04%2Fxmldsig-more%23rsa-sha256&Signature=ctNlfEtfHRAXj1%2FMgDjv8kWoxfbX8%2B6AOBz0nGY5hpuWEGehWHMi5%2F83YGCcHsxzxINqj7zE9mB%2BrwCX3xA4SbCJvEKVFd6J2156jjn5zLdftYUWxMqZOZBSjZuYNw5noqs1IvmFedV2hlGNjrPMYxun4sNicI4VUXNPJ0pglJvKVQaiHbmbPkcDT45F2OcXy%2BJ7NSrTBBWNxvIVSOxLQE6H41tECLTTZOtVdo9Urpnuloy6SyUM4VbeVSo%2B0ZZYq%2B75WOgZaSPlELE337aBVZ5r9siTg7N5%2FhtPFsmGkh6D%2BXvb3%2FWUl1zM4rhhJAWSEjxVEza5su2jdXGUzViG5g%3D%3D';
+      case 'DAL':
+        return 'https://dal01iavc01.rapidscale.local/websso/SAML2/SSO/vsphere.local?SAMLRequest=zVTfb5swEH7fX4H8DgaXpI1VUmXNqkVq16xk07SXyYFLY8nYzGcg%2Fe9nSLJF1VblcU9I5u6774fP1ze7SgUtWJRGZySJYhKALkwp9XNGvqzuwityM313jaJSNZ81bquf4GcD6IIZIljn226NxqYCm4NtZQELXcIuIx5o7sukFm6A3jpXI6e0FCpOpGiLOImsqGWJhVAQKeM%2FtIM1oqH57OGe0Tx%2FpC3WW7CH3yS4M7aAgUVGNkIhkGAxz8gPNi5HIzEeTUabdHw5uZqsYZxcihTWG2CXqeeywKVAlC38aURsPFl0QruMsJiNwiQJWbpiMb%2BYcDaO2NXoOwmW1jhTGPVe6r0rjdXcCJTItagAuSt4T5izKObrfRHyj6vVMlw%2B5qsBoJUl2E%2B%2BOiNv6edpekGCr8c0WJ%2BGz0cjH%2Fx%2Fe3R94Emmh7QGgfZ8AHEMlEzPCquRtEc9hlaBE6Vw4pqejt%2BTYTXv1S%2FmS6Nk8RLMlDLdrQXhvCPONjBEWwn3NsP%2BRJbhZijlde8TOtCOBPmyx%2F%2FcCCU3EuyZ1%2B0fCk5NZ%2Be6Tg9KuV%2BHUvY24inM2da%2FRjmAtL5lr8qLaqtO%2BKUoTEWx2EIlkArnbDgAUxYnjMYp%2FbDz3vQ3CY%2BCdih%2FY3RdF3UXkbHPviFO6LeH%2B3zACuWwE4XPxNdz91L7jPrx%2FAk0dGKtYOXP%2FiL4P6I6BwXPp1Tp63Cmx3t6%2BqhNfwE%3D&RelayState=a396558e-d80a-497b-90c9-3fb5bbfb2b84&SigAlg=http%3A%2F%2Fwww.w3.org%2F2001%2F04%2Fxmldsig-more%23rsa-sha256&Signature=ioKA%2F2EcweHiidsbRK%2Fle%2B3Ec7r4a0OVj5GWTNGI08ky2tAtbaLFuRwAoEhRO3SPNbZtbVKbw%2B0mcQ7we01keKC2GRhHZmEFFynCgAdI5Lsl8uszSIxLrmVQ7ZPBeHhX7t2FSp6vczJzM1lhdFagYe4JFTMR08Henw4B2RkF4v%2FLgsXsKQVxe6l3oR8k0J6ZNok60CbvKGEBS%2Fd0A%2FZQWTExv1WVZM41rUzcEF9F51OMGQy81%2FRZIZOLCWvXy3WZTQOaKK9ByhDfWPgQnHwNSHjmEIAi0dztJMA8BXVJJ1diRqf9S%2FoAVJyH3FVqOuZq6b4aPMcyx3WJCMeFwA%2BymA%3D%3D';
+      case 'ORD':
+        return 'https://ord01iavc01.rapidscale.local/websso/SAML2/SSO/iana.rs.local?SAMLRequest=zVTfb5swEH7fX4H8DjaEtMEKqbJm1Sq1a1ayadrL5MAltQQ28xlI%2F%2FsZkmxRtUV53BOSufvu%2B3H29GZXlV4LBqVWKQkDRjxQuS6k2qbky%2BrOn5Cb2bspiqqs%2BbyxL%2BoZfjaA1psjgrGu7VYrbCowGZhW5nCvCtilxAEtXJlUwg7QL9bWyCnVpmChFG3OwsCIWhaYixKCUrsP7WCNqGk2f3yIaJY9USmUCAzufxPvTpscBhYp2YgSgXj3i5T8YMDG8TW7CpN4MoIENkkiJiyabNYwHiXXG1eGS4EoW%2FjTiNg4smiFsimJWDT2w9CP4lXE%2BCjh4yS4iiffibc02upcl%2B%2Bl2rvSGMW1QIlciQqQ25z3hHkUML7eFyH%2FuFot%2FeVTthoAWlmA%2BeSqU3JOP4%2FjEfG%2BHtOI%2BjRcPgr54P%2F50fWBJ5kd0hoEmssBxDFQMrsorEbSHvUYWgVWFMKKKT0dvycT1bxXf79Y6lLmr968LHV3a0BY54g1DQzRVsKeZ9ifyMLfDKW87n1CC8oSL1v2%2BJ8bUcqNBHPhuv1Dwanp0aWu04NS7q5DIXsb8RTmYuvfohxAWteyV%2BVEtVUnDAS5rijmL1AJpMJa4w%2FANGJhRFlMP%2BycN%2F0m4VHQDuVvjK7rgm4UaLN1DSyk3x4fsgHLl8OdyF0mrp7b19pl1I%2Fnz6CgE%2BsSVu7sL4L%2FI6oLKGF7SpW%2BDWd23NPTR232Cw%3D%3D&RelayState=b5bb93f8-76e7-40bd-9ac4-4c92ba0cafd4&SigAlg=http%3A%2F%2Fwww.w3.org%2F2001%2F04%2Fxmldsig-more%23rsa-sha256&Signature=Wzs4IXFbqynoNZIEHZZmE0fWC3ugFoZrG%2BlNNik5XVzPDqHXlc%2F6ujpFD318MEN4v%2FxrFbpZ9n3spSI9AZ9O8E8eN5AyKMRGkXlSuEpY3cCl2lPCgHGNRoBGB0gxMd%2BmT4sBuz8UCd3H3fFH4gGenY%2F%2FMI36hr19ezmbpfeVyLUpHCfDxOau8eH1h1LO%2FrEa%2BrLzW8URQ%2FkfXsUOM3GK17qiCENL1X6M7Eg1sHDRY6LdDjK1ewWK3DmavXKGdlV02GZ8mjafAoob3m7Ch3zdm6IqGjB1rpb6Ih6tGfs6VfxMsSDQOmVmxNXeK66BAyjqXRCJnCwFBNZA8GWSMCbIJQ%3D%3D';
+      default:
+        return '';
+    }
+  }
+
+  function vdcUrl(dc) {
+    switch ((dc || '').toUpperCase()) {
+      case 'LAX':
+        return 'https://lax01vcd.rsportal.net/login/?service=provider&redirectTo=%2Fprovider%2F';
+      case 'IAD':
+        return 'https://iad01vcd.rsportal.net/login/?service=provider&redirectTo=%2Fprovider%2F';
+      case 'DAL':
+        return 'https://dal01vcd.rsportal.net/login/?service=provider&redirectTo=%2Fprovider%2Fcloud%2Forganizations';
+      case 'ORD':
+        return 'https://ord01vcd.rsportal.net/login/?service=provider&redirectTo=%2Fprovider%2Fcloud%2Forganizations';
+      default:
+        return '';
+    }
+  }
+
+  // ---- BGP leaves builder ----
+  function buildBGPLeaves(vlan, dc) {
+    if (!vlan) return '';
+    const vlanStr = String(vlan).trim();
+    const tag = vlanStr.length === 3 ? ('40' + vlanStr) : ('4' + vlanStr);
+    const second = dcSecondOctet(dc);
+    const leaves = [6, 7, 8, 9];
+    return leaves
+      .map(o => `Vlan ${vlanStr}
+     rd 10.${second}.220.${o}:${tag}
+     route-target both ${tag}:${tag}
+     redistribute learned`)
+      .join('\n\n');
+  }
+
+  // ---- Tabs ----
+  function activateTab(id) {
+    ['all', 'wanvlan', 'vcgvlan', 'route', 'bgp'].forEach(t => {
+      const tab = document.querySelector(`.tab[data-tab="${t}"]`);
+      if (tab) tab.classList.toggle('active', t === id);
+      const sec = document.getElementById('sec-' + t);
+      if (sec) sec.style.display = t === id ? 'block' : 'none';
+    });
+  }
+
+  // ---- Router ----
+  function setActiveNav() {
+    const hash = location.hash || '#home';
+    qq('#topnav a[data-route]').forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === hash);
+    });
+  }
+  function showPageFromHash() {
+    const id = (location.hash || '#home').slice(1);
+    qq('.page').forEach(p => p.classList.remove('active'));
+    const page = document.getElementById('page-' + id);
+    if (page) page.classList.add('active');
+    setActiveNav();
+  }
+
+  document.addEventListener('click', e => {
+    const a = e.target.closest && e.target.closest('a[data-route]');
+    if (!a) return;
+    e.preventDefault();
+    const href = a.getAttribute('href') || '#home';
+    if (location.hash !== href) {
+      try {
+        history.pushState(null, '', href);
+      } catch (_) {
+        location.hash = href;
+      }
+    }
+    showPageFromHash();
+  });
+  window.addEventListener('popstate', showPageFromHash);
+  window.addEventListener('hashchange', showPageFromHash);
+
+  // ---- Local-In builder ----
+  function buildLocalInConfig(intf) {
+    return (
+      'config firewall address\n' +
+      'edit "RS-MGMT-Block"\n' +
+      'set subnet 184.189.47.0/27\n' +
+      'next\n' +
+      'edit "Ansible1"\n' +
+      'set subnet 185.159.5.146 255.255.255.255\n' +
+      'next\n' +
+      'edit "Ansible2"\n' +
+      'set subnet 185.159.5.148 255.255.255.255\n' +
+      'next\n' +
+      'edit "RS-SNMP"\n' +
+      'set subnet 185.159.5.148 255.255.255.255\n' +
+      'next\n' +
+      'edit "RS_PRTG_SNMP1"\n' +
+      'set subnet 103.219.222.45 255.255.255.255\n' +
+      'next\n' +
+      'edit "RS_PRTG_SNMP2"\n' +
+      'set subnet 98.186.17.128 255.255.255.128\n' +
+      'next\n' +
+      'end\n\n' +
+      'config firewall addrgrp\n' +
+      'edit "FirewallAccess_WAN"\n' +
+      'set member "RS-MGMT-Block" "Ansible1" "Ansible2"\n' +
+      'next\n' +
+      'edit "RS_PRTG_MON"\n' +
+      'set member "RS_PRTG_SNMP1" "RS_PRTG_SNMP2"\n' +
+      'next\n' +
+      'end\n\n' +
+      'config firewall service custom\n' +
+      'edit "9443"\n' +
+      'set category "Remote Access"\n' +
+      'set tcp-portrange 9443\n' +
+      'next\n' +
+      'edit "922"\n' +
+      'set category "Remote Access"\n' +
+      'set tcp-portrange 922\n' +
+      'next\n' +
+      'end \n\n' +
+      'config firewall local-in-policy\n' +
+      'edit 1\n' +
+      `set intf "${intf}"\n` +
+      'set srcaddr "FirewallAccess_WAN"\n' +
+      'set dstaddr "all"\n' +
+      'set action accept\n' +
+      'set service "9443"\n' +
+      'set schedule "always"\n' +
+      'next\n' +
+      'edit 2\n' +
+      `set intf "${intf}"\n` +
+      'set srcaddr "FirewallAccess_WAN"\n' +
+      'set dstaddr "all"\n' +
+      'set action accept\n' +
+      'set service "922"\n' +
+      'set schedule "always"\n' +
+      'next\n' +
+      'edit 3\n' +
+      `set intf "${intf}"\n` +
+      'set srcaddr "RS_PRTG_MON"\n' +
+      'set dstaddr "all"\n' +
+      'set action accept\n' +
+      'set service "SNMP"\n' +
+      'set schedule "always"\n' +
+      'next\n' +
+      'edit 4\n' +
+      `set intf "${intf}"\n` +
+      'set srcaddr "RS_PRTG_MON"\n' +
+      'set dstaddr "all"\n' +
+      'set action accept\n' +
+      'set service "ALL_ICMP"\n' +
+      'set schedule "always"\n' +
+      'next\n' +
+      'edit 50\n' +
+      `set intf "${intf}"\n` +
+      'set srcaddr "all"\n' +
+      'set dstaddr "all"\n' +
+      'set service "9443"\n' +
+      'set schedule "always"\n' +
+      'next\n' +
+      'edit 51\n' +
+      `set intf "${intf}"\n` +
+      'set srcaddr "all"\n' +
+      'set dstaddr "all"\n' +
+      'set service "SNMP"\n' +
+      'set schedule "always"\n' +
+      'next\n' +
+      'edit 52\n' +
+      `set intf "${intf}"\n` +
+      'set srcaddr "all"\n' +
+      'set dstaddr "all"\n' +
+      'set service "922"\n' +
+      'set schedule "always"\n' +
+      'next\n' +
+      'end'
+    );
+  }
+
+  // ---- Core compute & render ----
+  function compute() {
+    const cust = (q('#custName') && q('#custName').value.trim()) || '';
+    const sfid = (q('#sfid') && q('#sfid').value.trim()) || '';
+    const dc = (q('#dc') && q('#dc').value.trim()) || '';
+    const wan = (q('#wanVlan') && q('#wanVlan').value.trim()) || '';
+    const vcg = (q('#vcgVlan') && q('#vcgVlan').value.trim()) || '';
+    const cidr = (q('#cidr') && q('#cidr').value.trim()) || '';
+
+    // Preview names
+    const wn = q('#wanNamePreview');
+    const vn = q('#vcgNamePreview');
+    if (wn) wn.textContent = cust ? `${cust} - WAN` : '(auto)';
+    if (vn) vn.textContent = cust ? `${cust} - VCG` : '(auto)';
+
+    // IPAM logic
+    let gw = '—', fw = '—', mask = '—', prefix = '—';
+    try {
+      if (cidr) {
+        const parsed = parseCIDR(cidr);
+        prefix = parsed.prefix;
+        mask = parsed.mask.dotted;
+        if (parsed.prefix === 32) {
+          gw = fw = '—';
+        } else if (parsed.prefix === 31) {
+          gw = intToIp(parsed.network);
+          fw = intToIp((parsed.network + 1) >>> 0);
+        } else {
+          gw = intToIp(parsed.first);
+          const second = Math.min(parsed.last, (parsed.first + 1) >>> 0);
+          fw = intToIp(second);
+        }
+      }
+    } catch (e) {}
+
+    if (q('#gw')) q('#gw').textContent = gw;
+    if (q('#fw')) q('#fw').textContent = fw;
+    if (q('#mask')) q('#mask').textContent = mask;
+    const desc = (dc && cust && sfid) ? `(${dc}) - ${cust} - ${sfid}` : '—';
+    if (q('#desc')) q('#desc').textContent = desc;
+    if (q('#kvWanVlan')) q('#kvWanVlan').textContent = wan || '—';
+    if (q('#kvDc')) q('#kvDc').textContent = dc || '—';
+
+    // Arista sections
+    const secWAN  = `vlan ${wan}
+      name ${cust}-${sfid}-WAN`;
+    const secVCG  = `vlan ${vcg}
+    name ${cust}-${sfid}-VCG`;
+    const secRoute = `interface Vlan${wan}
+  description ${cust}-${sfid}-WAN
+  vrf RS-INET
+  ip address ${gw} ${mask}`;
+    const secBGP  = buildBGPLeaves(wan, dc);
+    const secBGPVCG = (dc === 'IAD' ? buildBGPLeaves(vcg, dc) : '');
+
+    if (q('#code-wanvlan')) q('#code-wanvlan').textContent = secWAN;
+    if (q('#code-vcgvlan')) q('#code-vcgvlan').textContent = secVCG;
+    if (q('#code-route')) q('#code-route').textContent = secRoute;
+    if (q('#code-bgp')) q('#code-bgp').textContent = secBGP;
+
+    const dontEl = q('#dontforget');
+    const codeBgpVcg = q('#code-bgp-vcg');
+    if (dontEl) dontEl.style.display = (dc === 'IAD' ? 'block' : 'none');
+    if (codeBgpVcg) codeBgpVcg.textContent = secBGPVCG;
+
+    const parts = [secWAN, '', secVCG, '', secRoute, '', secBGP];
+    if (dc === 'IAD') parts.push('', secBGPVCG);
+    if (q('#code-all')) q('#code-all').textContent = parts.join('\n');
+
+    const dalBanner = q('#dalBanner');
+    if (dalBanner) dalBanner.style.display = (dc === 'DAL' ? 'block' : 'none');
+
+    // Static route helper
+    const routes = qq('.static-route').map(i => i.value.trim()).filter(Boolean);
+    if (routes.length && fw !== '—') {
+      const cmds = routes
+        .map(r => `ip route vrf RS-INET ${r} ${fw} tag 10 name ${cust}-addtl`)
+        .join('\n');
+      if (q('#staticOut')) q('#staticOut').textContent = cmds;
+    } else if (q('#staticOut')) {
+      q('#staticOut').textContent = '';
     }
 
-    // ---- Tabs ----
-    function activateTab(id){ ['all','wanvlan','vcgvlan','route','bgp'].forEach(t=>{ const tab=document.querySelector(`.tab[data-tab="${t}"]`); if(tab) tab.classList.toggle('active', t===id); const sec=document.querySelector(`#sec-${t}`); if(sec) sec.style.display=(t===id?'block':'none'); }); }
+    // DCNM
+    const netId = (wan && String(wan).length === 3) ? (`40${wan}`) : (wan ? (`4${wan}`) : '');
+    const vlanNameRaw = `${cust}-WAN`;
+    const vlanName = vlanNameRaw.length > 30 ? vlanNameRaw.slice(0, 30) : vlanNameRaw;
+    const showWarn = vlanNameRaw.length > 30;
 
-    // ---- Router ----
-    function setActiveNav(){ const hash=location.hash||'#home'; qq('#topnav a[data-route]').forEach(a=>a.classList.toggle('active', a.getAttribute('href')===hash)); }
-    function showPageFromHash(){ const id=(location.hash||'#home').slice(1); qq('.page').forEach(p=>p.classList.remove('active')); const page=document.getElementById('page-'+id); if(page){ page.classList.add('active'); } setActiveNav(); }
+    const netInfo = [
+      `Network ID - ${netId}`,
+      `Network Name - ${cust}-WAN`,
+      'VRF Name - Leave as default',
+      'Layer 2 Only - Leave as default',
+      'Network Template - Leave as default',
+      'Network Extension Template - Leave as default',
+      `VLAN ID - ${wan}`
+    ].join('\n');
 
-    document.addEventListener('click', (e)=>{ const a=e.target.closest && e.target.closest('a[data-route]'); if(!a) return; e.preventDefault(); const href=a.getAttribute('href')||'#home'; if(location.hash!==href){ try{ history.pushState(null,'',href);}catch(_){ location.hash=href; } } showPageFromHash(); });
+    const netProfile = [
+      `IPv4 Gateway/NetMask - ${gw}/${prefix}`,
+      'IPv6 Gateway/Prefix - Leave as default',
+      `VLAN Name - ${vlanName}`,
+      `Interface Description - ${cust}-${sfid}-WAN`,
+      'MTU for L3 interface - Leave as default',
+      'IPv4 Secondary GW1 - Leave as default',
+      'IPv4 Secondary GW2 - Leave as default',
+      'IPv4 Secondary GW3 - Leave as default',
+      'IPv4 Secondary GW4 - Leave as default'
+    ].join('\n');
+
+    const adv = [
+      'ARP Suppression - Tick the box',
+      'Ingress Replication - Leave as default',
+      'Multicast Group Address - Leave as default',
+      'DHCPv4 Server 1 - Leave as default',
+      'DHCPv4 Server VRF - Leave as default',
+      'DHCPv4 Server 2 - Leave as default',
+      'DHCPv4 Server2 VRF - Leave as default',
+      'Loopback ID for DHCP Relay interface - Leave as default',
+      'Routing Tag - 1000',
+      'TRM Enable - Leave as default',
+      'L2 VNI Route-Target Both Enable - Leave as default',
+      'Enable L3 Gateway on Border - Leave as default'
+    ].join('\n');
+
+    if (q('#dcnm-netinfo')) q('#dcnm-netinfo').textContent = netInfo;
+    if (q('#dcnm-netprofile')) q('#dcnm-netprofile').textContent = netProfile;
+    if (q('#dcnm-advanced')) q('#dcnm-advanced').textContent = adv;
+
+    const warnEl = q('#vlanNameWarning');
+    if (warnEl) warnEl.style.display = showWarn ? 'block' : 'none';
+
+    // ---- VDC build helper text ----
+    const vsUrl = vsphereUrl(dc);
+    const vdcUrlStr = vdcUrl(dc);
+
+    const vSphereLink = q('#vdc-vsphere-link');
+    if (vSphereLink) {
+      vSphereLink.textContent = vsUrl || ('No vSphere URL defined for ' + (dc || '?'));
+      vSphereLink.href = vsUrl || '#';
+      vSphereLink.target = vsUrl ? '_blank' : '_self';
+    }
+
+    const vdcLink = q('#vdc-vdc-link');
+    if (vdcLink) {
+      vdcLink.textContent = vdcUrlStr || ('No VDC URL defined for ' + (dc || '?'));
+      vdcLink.href = vdcUrlStr || '#';
+      vdcLink.target = vdcUrlStr ? '_blank' : '_self';
+    }
+
+    const dcLabel = dc || '<Datacenter>';
+    const custLabel = cust || '<Customer>';
+    const sfidLabel = sfid || '<SalesforceID>';
+    const wanLabel = wan || '<WAN_VLAN>';
+    const vcgLabel = vcg || '<VCG_VLAN>';
+    const gwLabel = gw !== '—' ? gw : '<Gateway>';
+    const cidrLabel = (gw !== '—' && prefix !== '—') ? (gw + '/' + prefix) : '<Gateway/CIDR>';
+    const fwLabel = fw !== '—' ? fw : '<Firewall IP>';
+
+    const vdcLines = [];
+    vdcLines.push('Building FortiGate Manually');
+    vdcLines.push('Pre-requisites');
+    vdcLines.push('1. Need to have the VLANs pulled.');
+    vdcLines.push('2. Need to have WAN IP pulled.');
+    vdcLines.push('3. VLANs and WAN IP need to be configured into Arista or DCNM.');
+    vdcLines.push('');
+    vdcLines.push('Step 1: vSphere Port Groups');
+    vdcLines.push('- Go to vSphere for that datacenter.');
+    vdcLines.push('');
+    vdcLines.push('Your Datacenter vSphere: ' + dcLabel);
+    vdcLines.push('URL: ' + (vsUrl || '<no vSphere URL for this DC>'));
+    vdcLines.push('');
+    vdcLines.push('- Click on the Globe icon, then expand <datacenter>01iavc01.rapidscale.local');
+    vdcLines.push('- Click on <datacenter>01ia then <datacenter>iadvs03-Guest');
+    vdcLines.push('- Right Click on root guest and click Distributed Port Group > New Distributed Port');
+    vdcLines.push('');
+    vdcLines.push('WAN Port Group:');
+    vdcLines.push('  - Name: "ext' + wanLabel + '-' + custLabel + '-' + sfidLabel + '-WAN"');
+    vdcLines.push('  - VLAN type: VLAN');
+    vdcLines.push('  - VLAN ID: ' + wanLabel);
+    vdcLines.push('  - Next, Finish');
+    vdcLines.push('');
+    vdcLines.push('VCG Port Group:');
+    vdcLines.push('  - Name: "ext' + vcgLabel + '-' + custLabel + '-' + sfidLabel + '-VCG"');
+    vdcLines.push('  - VLAN type: VLAN');
+    vdcLines.push('  - VLAN ID: ' + vcgLabel);
+    vdcLines.push('  - Next, Finish');
+    vdcLines.push('');
+    vdcLines.push('Step 2: VDC External Network (WAN)');
+    vdcLines.push('Your VDC: ' + dcLabel);
+    vdcLines.push('URL: ' + (vdcUrlStr || '<no VDC URL for this DC>'));
+    vdcLines.push('- Log in via SAML');
+    vdcLines.push('');
+    vdcLines.push('- Click External Networks');
+    vdcLines.push('- Click New');
+    vdcLines.push('- vSphere Resources (Distributed Port Groups) > Next');
+    vdcLines.push('  - Name: "ext' + wanLabel + '-' + custLabel + '-' + sfidLabel + '-WAN"');
+    vdcLines.push('  - Description: "' + gwLabel + ' - ' + custLabel + ' - ' + sfidLabel + '"');
+    vdcLines.push('  - Gateway CIDR: ' + cidrLabel);
+    vdcLines.push('  - Static IP Pools: ' + fwLabel);
+    vdcLines.push('- Click Next');
+    vdcLines.push('  - Filter to: ext' + wanLabel + '-' + custLabel + '-' + sfidLabel + '-WAN');
+    vdcLines.push('  - Configuration: Click New');
+    vdcLines.push('    - Gateway CIDR: ' + cidrLabel);
+    vdcLines.push('    - Static Pool: ' + fwLabel);
+    vdcLines.push('- Click Next');
+    vdcLines.push('- Click Finish');
+    vdcLines.push('');
+    vdcLines.push('Step 3: VDC External Network (VCG)');
+    vdcLines.push('- Repeat External Network creation for the VCG VLAN.');
+    vdcLines.push('  - Name: "ext' + vcgLabel + '-' + custLabel + '-' + sfidLabel + '-VCG"');
+    vdcLines.push('  - Description: "<VCG Gateway/CIDR> - ' + custLabel + ' - ' + sfidLabel + '"');
+    vdcLines.push('  - Gateway CIDR / Static Pool based on internal VCG subnet design.');
+    vdcLines.push('- Finish the wizard.');
+    vdcLines.push('');
+    vdcLines.push('Step 4: Create Organization');
+    vdcLines.push('- Click Organizations');
+    vdcLines.push('- Click New');
+    vdcLines.push('  - Organization Name: ' + custLabel);
+    vdcLines.push('  - Organization Full Name: ' + custLabel);
+    vdcLines.push('  - Description: ' + custLabel + ' - ' + sfidLabel);
+    vdcLines.push('  - Enable Sub-Provider: leave UNchecked.');
+    vdcLines.push('- Click Create');
+    vdcLines.push('');
+    vdcLines.push('Step 5: Org Policies & Metadata');
+    vdcLines.push('- Click into the new Organization');
+    vdcLines.push('- Click Policies');
+    vdcLines.push('  - vApp Leases: Never Expires');
+    vdcLines.push('  - Runtime Expiry Action: Never Expires');
+    vdcLines.push('  - vApp Template Lease: Never Expires');
+    vdcLines.push('- Click Metadata');
+    vdcLines.push('  - CRMUID: ' + sfidLabel);
+    vdcLines.push('  - Save');
+    vdcLines.push('');
+    vdcLines.push('Step 6: Organization VDC');
+    vdcLines.push('- Click Organization VDCs');
+    vdcLines.push('- Click New');
+    vdcLines.push('  - Name: ' + custLabel + dcLabel);
+    vdcLines.push('  - Description: ' + custLabel + ' - ' + sfidLabel + ' - ' + gwLabel);
+    vdcLines.push('  - Enable the Organization VDC: checked');
+    vdcLines.push('  - Organization Name: select ' + custLabel);
+    vdcLines.push('- Click Next');
+    vdcLines.push('  - Provider VDC: select the only available provider');
+    vdcLines.push('- Click Next');
+    vdcLines.push('  - Allocation Model: Pay-As-You-Go');
+    vdcLines.push('  - CPU resources guaranteed: 0');
+    vdcLines.push('  - vCPU speed: 8GHz');
+    vdcLines.push('  - Memory resources guaranteed: 0');
+    vdcLines.push('- Click Next');
+    vdcLines.push('  - Storage Policies: select SSD, enable Thin Provisioning');
+    vdcLines.push('- Click Next');
+    vdcLines.push('  - Network Pool: VXLAN');
+    vdcLines.push('- Click Next, then Finish');
+    vdcLines.push('');
+    vdcLines.push('Step 7: Tenant Networks (WAN & VCG)');
+    vdcLines.push('- Click into your new Organization');
+    vdcLines.push('- Click Open Tenant Portal');
+    vdcLines.push('- On the left, click Networking');
+    vdcLines.push('- Click New');
+    vdcLines.push('  - Scope: Organization Virtual Data Center (select the org VDC)');
+    vdcLines.push('  - Network Type: Direct');
+    vdcLines.push('  - Name: ' + custLabel + 'WAN');
+    vdcLines.push('  - Description: ' + gwLabel + ' - ' + custLabel + ' - ' + sfidLabel);
+    vdcLines.push('  - Shared: disabled');
+    vdcLines.push('  - External Network Connection: filter "ext' + wanLabel + '-' + custLabel + '-' + sfidLabel + '-WAN"');
+    vdcLines.push('- Click Next, then Finish');
+    vdcLines.push('');
+    vdcLines.push('VCG Tenant Network:');
+    vdcLines.push('- Repeat the wizard:');
+    vdcLines.push('  - Name: ' + custLabel + 'VCG');
+    vdcLines.push('  - Description: <VCG IP> - ' + custLabel + ' - ' + sfidLabel);
+    vdcLines.push('  - External Network Connection: "ext' + vcgLabel + '-' + custLabel + '-' + sfidLabel + '-VCG"');
+    vdcLines.push('- Click Finish');
+    vdcLines.push('');
+    vdcLines.push('To be continued...');
+
+    const vdcNode = q('#vdc-steps');
+    if (vdcNode) vdcNode.textContent = vdcLines.join('\n');
+
+    showOK('JS initialized ✔');
+  }
+
+  // ---- Export / Import helpers ----
+  function collectState() {
+    return {
+      version: 3,
+      savedAt: new Date().toISOString(),
+      fields: {
+        custName: (q('#custName') && q('#custName').value) || '',
+        sfid: (q('#sfid') && q('#sfid').value) || '',
+        dc: (q('#dc') && q('#dc').value) || '',
+        wanVlan: (q('#wanVlan') && q('#wanVlan').value) || '',
+        vcgVlan: (q('#vcgVlan') && q('#vcgVlan').value) || '',
+        cidr: (q('#cidr') && q('#cidr').value) || ''
+      }
+    };
+  }
+  function applyState(obj) {
+    if (!obj || !obj.fields) return;
+    const f = obj.fields;
+    if (q('#custName')) q('#custName').value = f.custName || '';
+    if (q('#sfid')) q('#sfid').value = f.sfid || '';
+    if (q('#dc')) q('#dc').value = f.dc || '';
+    if (q('#wanVlan')) q('#wanVlan').value = f.wanVlan || '';
+    if (q('#vcgVlan')) q('#vcgVlan').value = f.vcgVlan || '';
+    if (q('#cidr')) q('#cidr').value = f.cidr || '';
+    compute();
+  }
+  function doExport() {
+    const state = collectState();
+    const name = (state.fields.custName || 'Customer').replace(/[^A-Za-z0-9_-]+/g, '_');
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'CustomerBuildSheet_' + name + '_' + Date.now() + '.json';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(a.href);
+      a.remove();
+    }, 0);
+  }
+  function doImport(file) {
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        const obj = JSON.parse(r.result);
+        applyState(obj);
+        alert('Import successful');
+      } catch (_) {
+        alert('Invalid JSON file.');
+      }
+    };
+    r.readAsText(file);
+  }
+
+  // ---- Bootstrap ----
+  function init() {
+    // Recompute when core inputs change
+    ['input', 'change'].forEach(evt => {
+      ['#custName', '#sfid', '#dc', '#wanVlan', '#vcgVlan', '#cidr'].forEach(sel => {
+        const n = document.querySelector(sel);
+        if (n) n.addEventListener(evt, compute);
+      });
+    });
+
+    // Static route add-row button
+    let staticCount = 1;
+    const addBtn = q('#btnAddRoute');
+    if (addBtn) {
+      addBtn.addEventListener('click', () => {
+        staticCount++;
+        const row = document.createElement('div');
+        row.className = 'field static-row';
+        row.innerHTML = '<label>Route #' + staticCount + '</label>' +
+          '<input class="static-route" placeholder="203.0.113.' + (10 + staticCount) + '/32" />';
+        const host = q('#staticRoutes');
+        if (host) host.appendChild(row);
+      });
+    }
+
+    const buildBtn = q('#btnNeedStatic');
+    if (buildBtn) buildBtn.addEventListener('click', compute);
+
+    // Tabs
+    qq('.tab').forEach(t => t.addEventListener('click', () => activateTab(t.dataset.tab)));
+
+    // Copy buttons
+    document.addEventListener('click', e => {
+      const btn = e.target && e.target.closest ? e.target.closest('[data-copy]') : null;
+      if (!btn) return;
+      const id = btn.getAttribute('data-copy');
+      const node = document.getElementById(id);
+      if (!node) return;
+      navigator.clipboard.writeText(node.textContent).then(() => {
+        const original = btn.textContent;
+        btn.textContent = 'Copied';
+        setTimeout(() => { btn.textContent = original; }, 900);
+      });
+    });
+
+    // Local-In interface selection
+    const localSel = q('#localInterface');
+    if (localSel) {
+      localSel.addEventListener('change', e => {
+        const useCustom = e.target && e.target.value === 'custom';
+        const row = q('#customIntfRow');
+        if (row) row.style.display = useCustom ? 'grid' : 'none';
+      });
+    }
+    const genLocal = q('#generateLocal');
+    const copyLocal = q('#copyLocal');
+    if (genLocal) {
+      genLocal.addEventListener('click', () => {
+        let intf = (q('#localInterface') && q('#localInterface').value) || 'wan1';
+        if (intf === 'custom') {
+          const v = q('#localCustomIntf') && q('#localCustomIntf').value;
+          if (v && v.trim()) intf = v.trim();
+        }
+        const out = buildLocalInConfig(intf);
+        const node = q('#localOutput');
+        if (node) node.textContent = out;
+      });
+    }
+    if (copyLocal) {
+      copyLocal.addEventListener('click', () => {
+        const out = (q('#localOutput') && q('#localOutput').textContent) || '';
+        if (!out) return;
+        navigator.clipboard.writeText(out);
+      });
+    }
+
+    // Export / Import buttons
+    const expBtn = q('#btnExport');
+    if (expBtn) expBtn.addEventListener('click', doExport);
+    const impBtn = q('#btnImport');
+    const impFile = q('#fileImport');
+    if (impBtn) {
+      impBtn.addEventListener('click', () => {
+        if (impFile) impFile.click();
+      });
+    }
+    if (impFile) {
+      impFile.addEventListener('change', e => {
+        const f = e && e.target && e.target.files ? e.target.files[0] : null;
+        if (f) doImport(f);
+        e.target.value = '';
+      });
+    }
+
+    // Sample & reset
+    const smp = q('#btnSample');
+    if (smp) {
+      smp.addEventListener('click', () => {
+        if (q('#custName')) q('#custName').value = 'NobleGrid Networks';
+        if (q('#sfid')) q('#sfid').value = '0065x00000AbCdE';
+        if (q('#dc')) q('#dc').value = 'DAL';
+        if (q('#wanVlan')) q('#wanVlan').value = '210';
+        if (q('#vcgVlan')) q('#vcgVlan').value = '1210';
+        if (q('#cidr')) q('#cidr').value = '100.100.100.1/31';
+        compute();
+      });
+    }
+    const rst = q('#btnReset');
+    if (rst) {
+      rst.addEventListener('click', () => {
+        ['#custName', '#sfid', '#wanVlan', '#vcgVlan', '#cidr'].forEach(sel => {
+          const n = q(sel);
+          if (n) n.value = '';
+        });
+        const dcSel = q('#dc');
+        if (dcSel) dcSel.value = '';
+        qq('.static-route').forEach((n, i) => {
+          if (i === 0) {
+            n.value = '';
+          } else if (n.parentElement) {
+            n.parentElement.remove();
+          }
+        });
+        compute();
+      });
+    }
+
+    // Initial routing & render
     window.addEventListener('popstate', showPageFromHash);
     window.addEventListener('hashchange', showPageFromHash);
+    showPageFromHash();
 
-    // ---- Compute & render ----
-    function compute(){
-      const cust=(q('#custName')||{}).value ? q('#custName').value.trim() : '';
-      const sfid=(q('#sfid')||{}).value ? q('#sfid').value.trim() : '';
-      const dc=(q('#dc')||{}).value ? q('#dc').value.trim() : '';
-      const wan=(q('#wanVlan')||{}).value ? q('#wanVlan').value.trim() : '';
-      const vcg=(q('#vcgVlan')||{}).value ? q('#vcgVlan').value.trim() : '';
-      const cidr=(q('#cidr')||{}).value ? q('#cidr').value.trim() : '';
+    activateTab('all');
+    compute();
+    showOK('Ready ✔');
+  }
 
-      const wn=q('#wanNamePreview'); const vn=q('#vcgNamePreview');
-      if(wn) wn.textContent = cust?`${cust} - WAN`:'(auto)';
-      if(vn) vn.textContent = cust?`${cust} - VCG`:'(auto)';
-
-      let gw='—', fw='—', mask='—', prefix='—';
-      try{
-        const parsed=parseCIDR(cidr); prefix=parsed.prefix; mask=parsed.mask.dotted;
-        if(parsed.prefix===32){ gw=fw='—'; }
-        else if(parsed.prefix===31){ gw=intToIp(parsed.ipInt); fw=intToIp((parsed.ipInt+1)>>>0); }
-        else { gw=intToIp(parsed.first); const second=Math.min(parsed.last,(parsed.first+1)>>>0); fw=intToIp(second); }
-      }catch(e){ /* invalid CIDR -> keep placeholders */ }
-
-      if(q('#gw')) q('#gw').textContent=gw;
-      if(q('#fw')) q('#fw').textContent=fw;
-      if(q('#mask')) q('#mask').textContent=mask;
-      const desc=(dc&&cust&&sfid)?`(${dc}) - ${cust} - ${sfid}`:'—'; if(q('#desc')) q('#desc').textContent=desc;
-      if(q('#kvWanVlan')) q('#kvWanVlan').textContent=wan||'—';
-      if(q('#kvDc')) q('#kvDc').textContent=dc||'—';
-
-      const secWAN = `vlan ${wan}\n      name ${cust}-${sfid}-WAN`;
-      const secVCG = `vlan ${vcg}\n    name ${cust}-${sfid}-VCG`;
-      const secRoute = `interface Vlan${wan}\n  description ${cust}-${sfid}-WAN\n  vrf RS-INET\n  ip address ${gw} ${mask}`;
-      const secBGP = buildBGPLeaves(wan, dc);
-      const secBGPVCG = (dc==='IAD' ? buildBGPLeaves(vcg, dc) : '');
-
-      if(q('#code-wanvlan')) q('#code-wanvlan').textContent=secWAN;
-      if(q('#code-vcgvlan')) q('#code-vcgvlan').textContent=secVCG;
-      if(q('#code-route')) q('#code-route').textContent=secRoute;
-      if(q('#code-bgp')) q('#code-bgp').textContent=secBGP;
-
-      const dontEl=q('#dontforget'); const codeBgpVcg=q('#code-bgp-vcg');
-      if(dontEl) dontEl.style.display = (dc==='IAD' ? 'block' : 'none');
-      if(codeBgpVcg) codeBgpVcg.textContent = secBGPVCG;
-
-      const parts=[ secWAN,'',secVCG,'',secRoute,'',secBGP ]; if(dc==='IAD'){ parts.push('', secBGPVCG); }
-      if(q('#code-all')) q('#code-all').textContent=parts.join('\n');
-
-      const dalBanner=q('#dalBanner'); if(dalBanner) dalBanner.style.display=(dc==='DAL'?'block':'none');
-
-      const routes = qq('.static-route').map(i=>i.value.trim()).filter(Boolean);
-      if(routes.length){
-        const cmds = routes.map(r=>`ip route vrf RS-INET ${r} ${fw} tag 10 name ${cust}-addtl`).join('\n');
-        if(q('#staticOut')) q('#staticOut').textContent=cmds;
-      } else { if(q('#staticOut')) q('#staticOut').textContent=''; }
-
-      const netId=(wan && String(wan).length===3)?(`40${wan}`):(wan?(`4${wan}`):'');
-      const vlanNameRaw = `${cust}-WAN`; const vlanName = vlanNameRaw.length>30 ? vlanNameRaw.slice(0,30) : vlanNameRaw; const showWarn = vlanNameRaw.length>30;
-
-      const netInfo=[`Network ID - ${netId}`,`Network Name - ${cust}-WAN`,`VRF Name - Leave as default`,`Layer 2 Only - Leave as default`,`Network Template - Leave as default`,`Network Extension Template - Leave as default`,`VLAN ID - ${wan}`].join('\n');
-      const netProfile=[`IPv4 Gateway/NetMask - ${gw}/${prefix}`,`IPv6 Gateway/Prefix - Leave as default`,`VLAN Name - ${vlanName}`,`Interface Description - ${cust}-${sfid}-WAN`,`MTU for L3 interface - Leave as default`,`IPv4 Secondary GW1 - Leave as default`,`IPv4 Secondary GW2 - Leave as default`,`IPv4 Secondary GW3 - Leave as default`,`IPv4 Secondary GW4 - Leave as default`].join('\n');
-      const adv=[`ARP Suppression - Tick the box`,`Ingress Replication - Leave as default`,`Multicast Group Address - Leave as default`,`DHCPv4 Server 1 - Leave as default`,`DHCPv4 Server VRF - Leave as default`,`DHCPv4 Server 2 - Leave as default`,`DHCPv4 Server2 VRF - Leave as default`,`Loopback ID for DHCP Relay interface - Leave as default`,`Routing Tag - 1000`,`TRM Enable - Leave as default`,`L2 VNI Route-Target Both Enable - Leave as default`,`Enable L3 Gateway on Border - Leave as default`].join('\n');
-      if(q('#dcnm-netinfo')) q('#dcnm-netinfo').textContent=netInfo;
-      if(q('#dcnm-netprofile')) q('#dcnm-netprofile').textContent=netProfile;
-      if(q('#dcnm-advanced')) q('#dcnm-advanced').textContent=adv;
-      const warnEl=q('#vlanNameWarning'); if(warnEl) warnEl.style.display=showWarn?'block':'none';
-
-      showOK('JS initialized ✔');
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      try {
+        init();
+      } catch (e) {
+        showErr('Init failed: ' + e.message);
+      }
+    });
+  } else {
+    try {
+      init();
+    } catch (e) {
+      showErr('Init failed: ' + e.message);
     }
-
-    // ---- Local-In builder ----
-    function buildLocalInConfig(intf){
-      return `config firewall address\nedit "RS-MGMT-Block"\nset subnet 184.189.47.0/27\nnext\nedit "Ansible1"\nset subnet 185.159.5.146 255.255.255.255\nnext\nedit "Ansible2"\nset subnet 185.159.5.148 255.255.255.255\nnext\nedit "RS-SNMP"\nset subnet 185.159.5.148 255.255.255.255\nnext\nedit "RS_PRTG_SNMP1"\nset subnet 103.219.222.45 255.255.255.255\nnext\nedit "RS_PRTG_SNMP2"\nset subnet 98.186.17.128 255.255.255.128\nnext\nend\n\nconfig firewall addrgrp\nedit "FirewallAccess_WAN"\nset member "RS-MGMT-Block" "Ansible1" "Ansible2"\nnext\nedit "RS_PRTG_MON"\nset member "RS_PRTG_SNMP1" "RS_PRTG_SNMP2"\nnext\nend\n\nconfig firewall service custom\nedit "9443"\nset category "Remote Access"\nset tcp-portrange 9443\nnext\nedit "922"\nset category "Remote Access"\nset tcp-portrange 922\nnext\nend \n\nconfig firewall local-in-policy\nedit 1\nset intf "${intf}"\nset srcaddr "FirewallAccess_WAN"\nset dstaddr "all"\nset action accept\nset service "9443"\nset schedule "always"\nnext\nedit 2\nset intf "${intf}"\nset srcaddr "FirewallAccess_WAN"\nset dstaddr "all"\nset action accept\nset service "922"\nset schedule "always"\nnext\nedit 3\nset intf "${intf}"\nset srcaddr "RS_PRTG_MON"\nset dstaddr "all"\nset action accept\nset service "SNMP"\nset schedule "always"\nnext\nedit 4\nset intf "${intf}"\nset srcaddr "RS_PRTG_MON"\nset dstaddr "all"\nset action accept\nset service "ALL_ICMP"\nset schedule "always"\nnext \nedit 50\nset intf "${intf}"\nset srcaddr "all"\nset dstaddr "all"\nset service "9443"\nset schedule "always"\nnext\nedit 51\nset intf "${intf}"\nset srcaddr "all"\nset dstaddr "all"\nset service "SNMP"\nset schedule "always"\nnext\nedit 52\nset intf "${intf}"\nset srcaddr "all"\nset dstaddr "all"\nset service "922"\nset schedule "always"\nnext\nend`;
-    }
-
-    // ---- Export / Import helpers ----
-    function collectState(){
-      return { version:3, savedAt:new Date().toISOString(), fields:{ custName:(q('#custName')||{}).value||'', sfid:(q('#sfid')||{}).value||'', dc:(q('#dc')||{}).value||'', wanVlan:(q('#wanVlan')||{}).value||'', vcgVlan:(q('#vcgVlan')||{}).value||'', cidr:(q('#cidr')||{}).value||'' } };
-    }
-    function applyState(obj){
-      if(!obj||!obj.fields) return; const f=obj.fields;
-      if(q('#custName')) q('#custName').value=f.custName||'';
-      if(q('#sfid')) q('#sfid').value=f.sfid||'';
-      if(q('#dc')) q('#dc').value=f.dc||'';
-      if(q('#wanVlan')) q('#wanVlan').value=f.wanVlan||'';
-      if(q('#vcgVlan')) q('#vcgVlan').value=f.vcgVlan||'';
-      if(q('#cidr')) q('#cidr').value=f.cidr||'';
-      compute();
-    }
-    function doExport(){ const state=collectState(); const name=(state.fields.custName||'Customer').replace(/[^A-Za-z0-9_-]+/g,'_'); const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`CustomerBuildSheet_${name}_${Date.now()}.json`; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },0); }
-    function doImport(file){ const r=new FileReader(); r.onload=()=>{ try{ const obj=JSON.parse(r.result); applyState(obj); alert('Import successful'); }catch(_){ alert('Invalid JSON file.'); } }; r.readAsText(file); }
-
-    // ---- Bootstrap ----
-    function init(){
-      ['input','change'].forEach(evt=>['#custName','#sfid','#dc','#wanVlan','#vcgVlan','#cidr'].forEach(sel=>{ const n=document.querySelector(sel); if(n) n.addEventListener(evt,compute); }));
-
-      let staticCount=1; const addBtn=q('#btnAddRoute'); if(addBtn) addBtn.addEventListener('click',()=>{ staticCount++; const row=document.createElement('div'); row.className='field static-row'; row.innerHTML=`<label>Route #${staticCount}</label><input class="static-route" placeholder="203.0.113.${10+staticCount}/32" />`; const host=q('#staticRoutes'); if(host) host.appendChild(row); });
-
-      const buildBtn=q('#btnNeedStatic'); if(buildBtn) buildBtn.addEventListener('click', compute);
-
-      qq('.tab').forEach(t=>t.addEventListener('click',()=>activateTab(t.dataset.tab)));
-
-      document.addEventListener('click',(e)=>{ const btn=e.target && e.target.closest ? e.target.closest('[data-copy]') : null; if(!btn) return; const id=btn.getAttribute('data-copy'); const node=document.getElementById(id); if(!node) return; navigator.clipboard.writeText(node.textContent).then(()=>{ btn.textContent='Copied'; setTimeout(()=>btn.textContent='Copy',900); }); });
-
-      const localSel=q('#localInterface'); if(localSel) localSel.addEventListener('change', (e)=>{ const useCustom=(e.target && e.target.value)==='custom'; const row=q('#customIntfRow'); if(row) row.style.display=useCustom?'grid':'none'; });
-      const genLocal=q('#generateLocal'); const copyLocal=q('#copyLocal');
-      if(genLocal) genLocal.addEventListener('click',()=>{ let intf=(q('#localInterface')||{}).value||'wan1'; if(intf==='custom'){ const v=(q('#localCustomIntf')||{}).value; if(v && v.trim()) intf=v.trim(); } const out=buildLocalInConfig(intf); const node=q('#localOutput'); if(node) node.textContent=out; });
-      if(copyLocal) copyLocal.addEventListener('click',()=>{ const out=(q('#localOutput')||{}).textContent||''; if(!out) return; navigator.clipboard.writeText(out); });
-
-      const expBtn=q('#btnExport'); if(expBtn) expBtn.addEventListener('click', doExport);
-      const impBtn=q('#btnImport'); const impFile=q('#fileImport'); if(impBtn) impBtn.addEventListener('click', ()=>{ if(impFile) impFile.click(); }); if(impFile) impFile.addEventListener('change', (e)=>{ const f=e && e.target && e.target.files ? e.target.files[0] : null; if(f) doImport(f); e.target.value=''; });
-
-      const smp=q('#btnSample'); if(smp) smp.addEventListener('click',()=>{ if(q('#custName')) q('#custName').value='NobleGrid Networks'; if(q('#sfid')) q('#sfid').value='0065x00000AbCdE'; if(q('#dc')) q('#dc').value='DAL'; if(q('#wanVlan')) q('#wanVlan').value='210'; if(q('#vcgVlan')) q('#vcgVlan').value='1210'; if(q('#cidr')) q('#cidr').value='100.100.100.1/31'; compute(); });
-      const rst=q('#btnReset'); if(rst) rst.addEventListener('click',()=>{ ['#custName','#sfid','#wanVlan','#vcgVlan','#cidr'].forEach(sel=>{ const n=q(sel); if(n) n.value=''; }); const dc=q('#dc'); if(dc) dc.value=''; qq('.static-route').forEach((n,i)=>{ if(i===0){n.value='';} else { if(n.parentElement) n.parentElement.remove(); } }); compute(); });
-
-      window.addEventListener('popstate', showPageFromHash);
-      window.addEventListener('hashchange', showPageFromHash);
-      showPageFromHash();
-
-      activateTab('all');
-      compute();
-      showOK('Ready ✔');
-    }
-
-    if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', ()=>{ try{ init(); }catch(e){ showErr('Init failed: '+e.message); } }); }
-    else { try{ init(); }catch(e){ showErr('Init failed: '+e.message); } }
-  </script>
+  }
+</script>
 </body>
 </html>
