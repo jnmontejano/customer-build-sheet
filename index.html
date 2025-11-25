@@ -122,6 +122,14 @@
     }
     #debugBanner.ok { display:block; border-color: rgba(34,197,94,0.35); color:#dcfce7; }
     #debugBanner.err { display:block; border-color: rgba(255,107,107,0.45); color:#ffe4e6; }
+
+    /* Big pre-req title on VDC page */
+    .vdc-big-title {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
   </style>
 </head>
 
@@ -366,25 +374,50 @@
             This page helps you build out VDC and vSphere objects using the values from your Home page inputs.
           </p>
 
-          <div class="card" style="margin-bottom:12px;">
-            <h2>Quick Links</h2>
+          <!-- PRE-REQUISITES -->
+          <div class="card" style="margin-bottom:14px;">
+            <h2 class="vdc-big-title">Building FortiGate Manually – Pre-Requisites</h2>
             <div class="content">
-              <div class="kv">
-                <div class="k">vSphere:</div>
-                <div class="v"><a id="vdc-vsphere-link" href="#" target="_blank">—</a></div>
-                <div class="k">VDC:</div>
-                <div class="v"><a id="vdc-vdc-link" href="#" target="_blank">—</a></div>
-              </div>
+              <ol>
+                <li>Need to have the VLANs pulled.</li>
+                <li>Need to have WAN IP pulled.</li>
+                <li>VLANs and WAN IP need to be configured into Arista or DCNM.</li>
+              </ol>
             </div>
           </div>
 
-          <section class="card" style="margin-top:8px;">
-            <h2>Build Steps</h2>
+          <!-- vSphere STEP 1 -->
+          <div class="card" style="margin-bottom:14px;">
+            <h2>vSphere – Step 1</h2>
             <div class="content">
-              <pre class="code" id="vdc-steps"></pre>
-              <div class="copyRow"><button class="btn" data-copy="vdc-steps">Copy Steps</button></div>
+              <div class="note" style="margin-bottom:10px;">
+                <strong>Your Datacenter vSphere:</strong>
+                <span id="vdc-dc-label">—</span><br />
+                <strong>URL:</strong>
+                <a id="vdc-vsphere-url" href="#" target="_blank">—</a>
+              </div>
+
+              <pre class="code" id="vdc-step1"></pre>
+              <div class="copyRow"><button class="btn" data-copy="vdc-step1">Copy Step 1</button></div>
             </div>
-          </section>
+          </div>
+
+          <!-- VDC STEP 2+ -->
+          <div class="card" style="margin-bottom:14px;">
+            <h2>VDC – Steps 2 Through 7</h2>
+            <div class="content">
+              <div class="note" style="margin-bottom:10px;">
+                <strong>Your VDC:</strong>
+                <span id="vdc-dc-vdc-label">—</span><br />
+                <strong>URL:</strong>
+                <a id="vdc-vdc-url" href="#" target="_blank">—</a>
+              </div>
+
+              <pre class="code" id="vdc-steps"></pre>
+              <div class="copyRow"><button class="btn" data-copy="vdc-steps">Copy All VDC Steps</button></div>
+            </div>
+          </div>
+
         </div>
       </div>
     </section>
@@ -833,52 +866,59 @@
       const warnEl = q('#vlanNameWarning');
       if (warnEl) warnEl.style.display = showWarn ? 'block' : 'none';
 
-      // ---- VDC build helper text ----
+      // ---- VDC build helper text (NEW LAYOUT) ----
       const vsUrl = vsphereUrl(dc);
       const vdcUrlStr = vdcUrl(dc);
 
-      const vSphereLink = q('#vdc-vsphere-link');
-      if (vSphereLink) {
-        vSphereLink.textContent = vsUrl || ('No vSphere URL defined for ' + (dc || '?'));
-        vSphereLink.href = vsUrl || '#';
-        vSphereLink.target = vsUrl ? '_blank' : '_self';
+      // Set labels / hyperlinks for vSphere/VDC cards
+      const dcLabelNode = q('#vdc-dc-label');
+      if (dcLabelNode) dcLabelNode.textContent = dc || '—';
+
+      const vSphereUrlNode = q('#vdc-vsphere-url');
+      if (vSphereUrlNode) {
+        vSphereUrlNode.textContent = vsUrl || 'No vSphere URL defined for this DC';
+        vSphereUrlNode.href = vsUrl || '#';
+        vSphereUrlNode.target = vsUrl ? '_blank' : '_self';
       }
 
-      const vdcLink = q('#vdc-vdc-link');
-      if (vdcLink) {
-        vdcLink.textContent = vdcUrlStr || ('No VDC URL defined for ' + (dc || '?'));
-        vdcLink.href = vdcUrlStr || '#';
-        vdcLink.target = vdcUrlStr ? '_blank' : '_self';
+      const vdcDcLabelNode = q('#vdc-dc-vdc-label');
+      if (vdcDcLabelNode) vdcDcLabelNode.textContent = dc || '—';
+
+      const vdcUrlNode = q('#vdc-vdc-url');
+      if (vdcUrlNode) {
+        vdcUrlNode.textContent = vdcUrlStr || 'No VDC URL defined for this DC';
+        vdcUrlNode.href = vdcUrlStr || '#';
+        vdcUrlNode.target = vdcUrlStr ? '_blank' : '_self';
       }
 
+      /* ---------- STEP 1: vSphere ---------- */
+      const step1Lines = [];
+      step1Lines.push('Step 1: vSphere Distributed Port Groups');
+      step1Lines.push('- Go to vSphere for that datacenter.');
+      step1Lines.push('');
+      step1Lines.push('Your Datacenter vSphere: ' + (dc || '<Datacenter>'));
+      step1Lines.push('URL: ' + (vsUrl || '<No vSphere URL defined for this DC>'));
+      step1Lines.push('');
+      step1Lines.push('- Click on the Globe icon, then expand ' + (dc || '<datacenter>') + '01iavc01.rapidscale.local');
+      step1Lines.push('- Click on ' + (dc || '<datacenter>') + '01ia then ' + (dc || '<datacenter>') + 'advs03-Guest');
+      step1Lines.push('- Right Click on root guest and click Distributed Port Group > New Distributed Port');
+      step1Lines.push('  WAN Port Group:');
+      step1Lines.push('    Name: "ext' + (wan || '<WAN_VLAN>') + '-' + (cust || '<Customer>') + '-' + (sfid || '<SFID>') + '-WAN"');
+      step1Lines.push('    VLAN type: VLAN');
+      step1Lines.push('    VLAN ID: ' + (wan || '<WAN_VLAN>'));
+      step1Lines.push('    Click Next and Finish');
+      step1Lines.push('');
+      step1Lines.push('  VCG Port Group (repeat with VCG VLAN):');
+      step1Lines.push('    Name: "ext' + (vcg || '<VCG_VLAN>') + '-' + (cust || '<Customer>') + '-' + (sfid || '<SFID>') + '-VCG"');
+      step1Lines.push('    VLAN type: VLAN');
+      step1Lines.push('    VLAN ID: ' + (vcg || '<VCG_VLAN>'));
+      step1Lines.push('    Click Next and Finish');
+
+      const step1Node = q('#vdc-step1');
+      if (step1Node) step1Node.textContent = step1Lines.join('\n');
+
+      /* ---------- STEP 2–7: VDC ---------- */
       const vdcLines = [];
-      vdcLines.push('Building FortiGate Manually');
-      vdcLines.push('Pre-requisites');
-      vdcLines.push('1. Need to have the VLANs pulled.');
-      vdcLines.push('2. Need to have WAN IP pulled.');
-      vdcLines.push('3. VLANs and WAN IP need to be configured into Arista or DCNM.');
-      vdcLines.push('');
-      vdcLines.push('Step 1: vSphere Distributed Port Groups');
-      vdcLines.push('- Go to vSphere for that datacenter.');
-      vdcLines.push('');
-      vdcLines.push('Your Datacenter vSphere: ' + (dc || '<Datacenter>'));
-      vdcLines.push('URL: ' + (vsUrl || '<No vSphere URL defined for this DC>'));
-      vdcLines.push('');
-      vdcLines.push('- Click on the Globe icon, then expand <datacenter>01iavc01.rapidscale.local');
-      vdcLines.push('- Click on <datacenter>01ia then <datacenter>iadvs03-Guest');
-      vdcLines.push('- Right Click on root guest and click Distributed Port Group > New Distributed Port');
-      vdcLines.push('  WAN Port Group:');
-      vdcLines.push('    Name: "ext' + (wan || '<WAN_VLAN>') + '-' + (cust || '<Customer>') + '-' + (sfid || '<SFID>') + '-WAN"');
-      vdcLines.push('    VLAN type: VLAN');
-      vdcLines.push('    VLAN ID: ' + (wan || '<WAN_VLAN>'));
-      vdcLines.push('    Click Next and Finish');
-      vdcLines.push('');
-      vdcLines.push('  VCG Port Group (repeat with VCG VLAN):');
-      vdcLines.push('    Name: "ext' + (vcg || '<VCG_VLAN>') + '-' + (cust || '<Customer>') + '-' + (sfid || '<SFID>') + '-VCG"');
-      vdcLines.push('    VLAN type: VLAN');
-      vdcLines.push('    VLAN ID: ' + (vcg || '<VCG_VLAN>'));
-      vdcLines.push('    Click Next and Finish');
-      vdcLines.push('');
       vdcLines.push('Now go to VDC');
       vdcLines.push('Your VDC: ' + (dc || '<Datacenter>'));
       vdcLines.push('URL: ' + (vdcUrlStr || '<No VDC URL defined for this DC>'));
